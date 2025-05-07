@@ -2389,6 +2389,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Ground
       objectReference: {fileID: 0}
+    - target: {fileID: 8001586471835426886, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
+      propertyPath: m_TagString
+      value: Ground
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
 --- !u!1001 &541527956
@@ -3799,6 +3803,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8001586471835426886, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
       propertyPath: m_Name
+      value: Ground
+      objectReference: {fileID: 0}
+    - target: {fileID: 8001586471835426886, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
+      propertyPath: m_TagString
       value: Ground
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -9028,7 +9036,10 @@ MonoBehaviour:
   - {fileID: 1760672093}
   - {fileID: 1760672093}
   obstacles:
-  - {fileID: 0}
+  - {fileID: 69050597}
+  - {fileID: 1094017838}
+  - {fileID: 393783213}
+  - {fileID: 528024618}
 --- !u!4 &1790934667
 Transform:
   m_ObjectHideFlags: 0
@@ -10368,6 +10379,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8001586471835426886, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
       propertyPath: m_Name
+      value: Ground
+      objectReference: {fileID: 0}
+    - target: {fileID: 8001586471835426886, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
+      propertyPath: m_TagString
       value: Ground
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -11957,6 +11972,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8001586471835426886, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
       propertyPath: m_Name
+      value: Ground
+      objectReference: {fileID: 0}
+    - target: {fileID: 8001586471835426886, guid: 306b9c46b6601514e90d9cb6653bdb63, type: 3}
+      propertyPath: m_TagString
       value: Ground
       objectReference: {fileID: 0}
     m_RemovedComponents: []

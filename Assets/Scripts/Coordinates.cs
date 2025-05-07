@@ -8,7 +8,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     public Transform[] obstacles;
     private Camera mainCamera; // Camera
     private int frameCounter = 0;
-    private int printInterval = 200; // Print every 200 frames
+    private int printInterval = 50; // Print every 200 frames
     // Map data
     private ArrayList cameraPositions = new ArrayList();
     private ArrayList playerPositions = new ArrayList();
@@ -29,6 +29,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         {
             Debug.LogError("No main camera found!");
         }
+        GetGroundBounds();
 
 
 
@@ -55,7 +56,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         if (mainCamera != null)
         {
             Rect cameraRect = GetCameraBounds(mainCamera);
-            Debug.Log("SPpace:" + "X" + cameraRect.width + "Y" + cameraRect.height );
+            Debug.Log("Space:" + " X " + cameraRect.width + " Y " + cameraRect.height );
         }
 
         if (player != null && IsVisible(player))
@@ -65,7 +66,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             // Get object bounds
             Rect playerRect = GetObjectBounds(player.gameObject);
             playerBounds.Add(playerRect);
-            Debug.Log("Player: " + player.position + ", X " + playerRect.width + "Y" + playerRect.height);
+            Debug.Log("Player: " + player.position + ", X " + playerRect.width + " Y " + playerRect.height);
 
         }
 
@@ -78,7 +79,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 // Get object bounds
                 Rect enemyRect = GetObjectBounds(enemy.gameObject);
                 enemyBounds.Add(enemyRect);
-                Debug.Log("Enemy: " + enemy.position + ", X " + enemyRect.width + "Y" + enemyRect.height);
+                Debug.Log("Enemy: " + enemy.position + ", X " + enemyRect.width + " Y " + enemyRect.height);
             }
         }
 
@@ -91,10 +92,22 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 // Get object bounds
                 Rect obstacleRect = GetObjectBounds(obstacle.gameObject);
                 obstacleBounds.Add(obstacleRect);
-                Debug.Log("Obstacle: " + obstacle.position + ", X" + obstacleRect.width + "Y" + obstacleRect.height);
+                Debug.Log("Obstacle: " + obstacle.position + ", X " + obstacleRect.width + " Y " + obstacleRect.height);
             }
         }
     }
+
+    void GetGroundBounds()
+    {
+        GameObject[] groundObjects = GameObject.FindGameObjectsWithTag("Ground");
+       
+        
+        foreach (GameObject groundObject in groundObjects)
+        {
+            obstaclePositions.Add(GetObjectBounds(groundObject));
+        }
+    }
+
 
     Rect GetObjectBounds(GameObject obj)
     {
@@ -135,13 +148,17 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
     bool IsVisible(Transform obj)
     {
-        Vector3 viewportPoint = mainCamera.WorldToViewportPoint(obj.position); // Convert gameObject position to viewport coordinates
-
-        // Check if within camera's view
-        bool visible = viewportPoint.z > 0 && 
-                    viewportPoint.x > 0 && viewportPoint.x < 1 &&
-                    viewportPoint.y > 0 && viewportPoint.y < 1;
-
+        Rect objectBounds = GetObjectBounds(obj.gameObject);
+        
+        Rect viewportBounds = GetCameraBounds(mainCamera);
+        
+        bool visible = !(
+            objectBounds.xMax < viewportBounds.xMin ||
+            objectBounds.xMin > viewportBounds.xMax ||
+            objectBounds.yMax < viewportBounds.yMin ||
+            objectBounds.yMin > viewportBounds.yMax
+        );
+        
         return visible;
     }
 
