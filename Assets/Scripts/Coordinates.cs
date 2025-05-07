@@ -1,4 +1,5 @@
 using UnityEngine; // Import Unity
+using System.Collections; // IMport arraylist
 
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
 {
@@ -8,6 +9,16 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     private Camera mainCamera; // Camera
     private int frameCounter = 0;
     private int printInterval = 200; // Print every 200 frames
+    // Map data
+    private ArrayList cameraPositions = new ArrayList();
+    private ArrayList playerPositions = new ArrayList();
+    private ArrayList enemyPositions = new ArrayList();
+    private ArrayList obstaclePositions = new ArrayList();
+
+    private ArrayList playerBounds = new ArrayList();
+    private ArrayList enemyBounds = new ArrayList();
+    private ArrayList obstacleBounds = new ArrayList();
+
 
     void Start() // Automatically called when GameObject is activated (coordinates)
     {
@@ -18,6 +29,12 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         {
             Debug.LogError("No main camera found!");
         }
+
+
+
+        // ADD ALL COMPONENTS
+
+        //enemies.AddComponent<>();
     }
 
 
@@ -27,33 +44,93 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
         if (frameCounter >= printInterval)
         {
-            PrintCoordinates();
+            TrackCoordinates();
+            TrackCameraPosition();
             frameCounter = 0;
         }
     }
-    void PrintCoordinates()
+    void TrackCoordinates()
     {
-        if (player != null && IsVisible(player))
+
+        if (mainCamera != null)
         {
-            Debug.Log("Player: " + player.position);
+            Rect cameraRect = GetCameraBounds(mainCamera);
+            Debug.Log("SPpace:" + "X" + cameraRect.width + "Y" + cameraRect.height );
+        }
+
+        if (player != null && IsVisible(player))
+        {   
+            Vector2 playerPosition = new Vector2(player.position.x, player.position.y);
+            playerPositions.Add(playerPosition);
+            // Get object bounds
+            Rect playerRect = GetObjectBounds(player.gameObject);
+            playerBounds.Add(playerRect);
+            Debug.Log("Player: " + player.position + ", X " + playerRect.width + "Y" + playerRect.height);
 
         }
 
         foreach (Transform enemy in enemies)
         {
             if (enemy != null && IsVisible(enemy))
-            {
-                Debug.Log("EnemyL" + enemy.position);
+            {   
+                Vector2 enemyPosition = new Vector2(enemy.position.x, enemy.position.y);
+                enemyPositions.Add(enemyPosition);
+                // Get object bounds
+                Rect enemyRect = GetObjectBounds(enemy.gameObject);
+                enemyBounds.Add(enemyRect);
+                Debug.Log("Enemy: " + enemy.position + ", X " + enemyRect.width + "Y" + enemyRect.height);
             }
         }
 
         foreach (Transform obstacle in obstacles)
         {
             if (obstacle != null && IsVisible(obstacle))
-            {
-                Debug.Log("Obstacle: " + obstacle.position);
+            {   
+                Vector2 obstaclePosition = new Vector2(obstacle.position.x, obstacle.position.y);
+                obstaclePositions.Add(obstaclePosition);
+                // Get object bounds
+                Rect obstacleRect = GetObjectBounds(obstacle.gameObject);
+                obstacleBounds.Add(obstacleRect);
+                Debug.Log("Obstacle: " + obstacle.position + ", X" + obstacleRect.width + "Y" + obstacleRect.height);
             }
         }
+    }
+
+    Rect GetObjectBounds(GameObject obj)
+    {
+        Collider2D collider = obj.GetComponent<Collider2D>();
+       
+        // Get collider bounds
+        Bounds bounds = collider.bounds;
+        return new Rect(
+            bounds.min.x,
+            bounds.min.y,
+            bounds.size.x,
+            bounds.size.y
+            );
+    }
+
+    void TrackCameraPosition()
+    {
+        // Store camera position
+        Vector2 cameraPos = new Vector2(mainCamera.transform.position.x, mainCamera.transform.position.y);
+        cameraPositions.Add(cameraPos);
+        Debug.Log("Camera Position: " + cameraPos);
+    }
+
+    Rect GetCameraBounds(Camera camera)
+    {
+        Vector2 cameraPos = new Vector2(mainCamera.transform.position.x, mainCamera.transform.position.y);
+        float height = 2f * mainCamera.orthographicSize; //represents half the height of the camera's viewport in world units
+        float width = height * mainCamera.aspect; // width-to-height ratio of the camera 
+        
+        return new Rect(
+            cameraPos.x - width/2,
+            cameraPos.y - height/2,
+            width,
+            height
+        );
+
     }
 
     bool IsVisible(Transform obj)

@@ -9010,7 +9010,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 168128582}
   enemies:
-  - {fileID: 0}
+  - {fileID: 736093270}
   - {fileID: 282346638}
   - {fileID: 2003525331}
   - {fileID: 1659818672}
@@ -9027,7 +9027,8 @@ MonoBehaviour:
   - {fileID: 1760672093}
   - {fileID: 1760672093}
   - {fileID: 1760672093}
-  obstacles: []
+  obstacles:
+  - {fileID: 0}
 --- !u!4 &1790934667
 Transform:
   m_ObjectHideFlags: 0
