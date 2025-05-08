@@ -1,5 +1,7 @@
 using UnityEngine; // Import Unity
 using System.Collections; // IMport arraylist
+using System;
+using System.Text;
 
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
 {
@@ -10,7 +12,11 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     private int frameCounter = 0;
     private int printInterval = 50; // Print every 200 frames
     // Map data
-    private ArrayList cameraPositions = new ArrayList();
+    //private ArrayList cameraPositions = new ArrayList();
+    private Vector2 cameraPos;
+    private Vector4 viewPort;
+    private float viewPortHeight, viewPortWidth;
+    private float leftX, rightX, bottomY, topY;
     private ArrayList playerPositions = new ArrayList();
     private ArrayList enemyPositions = new ArrayList();
     private ArrayList obstaclePositions = new ArrayList();
@@ -18,6 +24,11 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     private ArrayList playerBounds = new ArrayList();
     private ArrayList enemyBounds = new ArrayList();
     private ArrayList obstacleBounds = new ArrayList();
+
+    // TODO SECTION
+
+    // Camera Positions SHOULD NOT BE STORED IN ARRAYLIST
+
 
 
     void Start() // Automatically called when GameObject is activated (coordinates)
@@ -31,11 +42,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         }
         GetGroundBounds();
 
-
-
-        // ADD ALL COMPONENTS
-
-        //enemies.AddComponent<>();
+        // Add edge for 
     }
 
 
@@ -45,11 +52,84 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
         if (frameCounter >= printInterval)
         {
+
+            playerPositions.Clear();
+            enemyPositions.Clear();
+            obstaclePositions.Clear();
+            playerBounds.Clear();
+            enemyBounds.Clear();
+            obstacleBounds.Clear();
             TrackCoordinates();
+            makeArray();
             TrackCameraPosition();
             frameCounter = 0;
         }
     }
+
+
+
+    void makeArray()
+    {   
+        float cellSize = 0.5f;
+
+        int gridWidth = (int)(viewPortWidth / cellSize); // rounded up
+        int gridHeight = (int)(viewPortHeight / cellSize);
+        Debug.Log("grid width: "  + gridWidth + " grid height " + gridHeight);
+        // Create grid 
+        int[,] grid = new int[gridWidth, gridHeight];
+        
+        float originX = viewPort.x; // left X
+        float originY = viewPort.z; // bottom Y
+        
+        // Make obstacles -1 in grid
+        foreach  (Rect item in obstacleBounds)
+        {                
+            // Calculate grid rectangle
+            int minX = Math.Max(0, (int)(item.xMin - originX));
+            int maxX = Math.Min(gridWidth - 1, (int)(item.xMax - originX));
+            int minY = Math.Max(0, (int)(item.yMin - originY));
+            int maxY = Math.Min(gridHeight - 1, (int)(item.yMax - originY));
+            
+            // Fill the grid cells 
+            for (int x = minX; x <= maxX; x++)
+            {
+                for (int y = minY; y <= maxY; y++)
+                {
+                    // Unity has it opposite???
+                    int gridY = gridHeight - 1 - y;
+                    grid[x, gridY] = -1; 
+                }
+            }
+
+
+            Debug.Log($"Obstacle: minX={minX}, maxX={maxX}, minY={minY}, maxY={maxY}, " +
+            $"worldX={item.xMin}-{item.xMax}, worldY={item.yMin}-{item.yMax}");
+        
+        }
+        
+
+        // https://www.reddit.com/r/Unity3D/comments/dc3ttd/how_to_print_a_2d_array_to_the_unity_console_as_a/
+        StringBuilder sb = new StringBuilder();
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {   
+                char cellChar = grid[x, y] == 0 ? '□' : '■';
+                sb.Append(cellChar);
+                sb.Append(' ');
+            }
+            sb.AppendLine();
+        }
+        Debug.Log(sb.ToString());
+
+        // return grid;
+    }
+
+
+    //Tracking coordinates 
+
+    //Printing all coordinates
+
     void TrackCoordinates()
     {
 
@@ -69,7 +149,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             Debug.Log("Player: " + player.position + ", X " + playerRect.width + " Y " + playerRect.height);
 
         }
-
+        // track real rt
         foreach (Transform enemy in enemies)
         {
             if (enemy != null && IsVisible(enemy))
@@ -92,6 +172,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 // Get object bounds
                 Rect obstacleRect = GetObjectBounds(obstacle.gameObject);
                 obstacleBounds.Add(obstacleRect);
+                //rect.width and rect.height may be wrong, go prnt\\
                 Debug.Log("Obstacle: " + obstacle.position + ", X " + obstacleRect.width + " Y " + obstacleRect.height);
             }
         }
@@ -126,9 +207,22 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     void TrackCameraPosition()
     {
         // Store camera position
-        Vector2 cameraPos = new Vector2(mainCamera.transform.position.x, mainCamera.transform.position.y);
-        cameraPositions.Add(cameraPos);
+        cameraPos = new Vector2(mainCamera.transform.position.x, mainCamera.transform.position.y);
         Debug.Log("Camera Position: " + cameraPos);
+        
+        viewPortHeight = 2f * mainCamera.orthographicSize; //represents half the height of the camera's viewport in world units
+        viewPortWidth = viewPortHeight * mainCamera.aspect; // width-to-height ratio of the camera 
+
+        viewPort = new Vector4(
+        cameraPos.x - viewPortWidth/2,  // x = leftX
+        cameraPos.x + viewPortWidth/2,  // y = rightX
+        cameraPos.y - viewPortHeight/2, // z = bottomY
+        cameraPos.y + viewPortHeight/2  // w = topY
+        );
+    
+
+        Debug.Log("Camera Dimensions: " + viewPort);
+
     }
 
     Rect GetCameraBounds(Camera camera)
@@ -162,6 +256,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         return visible;
     }
 
+
+    
 
     // BUILD A MAP
     // using the visible viewport, basically append all x's and y's, remove x's and y's that are being logged
