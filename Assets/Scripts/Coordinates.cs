@@ -6,7 +6,6 @@ using System.Text;
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
 {
     public Transform player; // Holds coordinates, Transform
-    public Transform[] enemies;
     public Transform[] obstacles;
     private Camera mainCamera; // Camera
     private int frameCounter = 0;
@@ -18,13 +17,13 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     private float viewPortHeight, viewPortWidth;
     private float leftX, rightX, bottomY, topY;
     private ArrayList playerPositions = new ArrayList();
-    private ArrayList enemyPositions = new ArrayList();
     private ArrayList obstaclePositions = new ArrayList();
 
     private ArrayList playerBounds = new ArrayList();
-    private ArrayList enemyBounds = new ArrayList();
     private ArrayList obstacleBounds = new ArrayList();
 
+
+    private Node[,] grid;
     // TODO SECTION
 
     // Camera Positions SHOULD NOT BE STORED IN ARRAYLIST
@@ -33,7 +32,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
     void Start() // Automatically called when GameObject is activated (coordinates)
     {
-        Debug.Log("Enemies array length: " + (enemies != null ? enemies.Length : 0));
         mainCamera = Camera.main;
         // Check if we have the camera
         if (mainCamera == null)
@@ -54,10 +52,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         {
 
             playerPositions.Clear();
-            enemyPositions.Clear();
             obstaclePositions.Clear();
             playerBounds.Clear();
-            enemyBounds.Clear();
             obstacleBounds.Clear();
             TrackCoordinates();
             makeArray();
@@ -70,43 +66,71 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
     void makeArray()
     {   
-        float cellSize = 0.5f;
-
-        int gridWidth = (int)(viewPortWidth / cellSize); // rounded up
-        int gridHeight = (int)(viewPortHeight / cellSize);
-        Debug.Log("grid width: "  + gridWidth + " grid height " + gridHeight);
-        // Create grid 
-        int[,] grid = new int[gridWidth, gridHeight];
+        // Set grid width and Height
+        int gridWidth = (int)(viewPortWidth ); 
+        int gridHeight = (int)(viewPortHeight );
+        
+        // Create grid (it's just a matrix)
+        grid = new Node[gridWidth, gridHeight];
         
         float originX = viewPort.x; // left X
         float originY = viewPort.z; // bottom Y
         
+    
+
+
         // Make obstacles -1 in grid
-        foreach  (Rect item in obstacleBounds)
-        {                
-            // Calculate grid rectangle
-            int minX = Math.Max(0, (int)(item.xMin - originX));
-            int maxX = Math.Min(gridWidth - 1, (int)(item.xMax - originX));
-            int minY = Math.Max(0, (int)(item.yMin - originY));
-            int maxY = Math.Min(gridHeight - 1, (int)(item.yMax - originY));
+        foreach (Rect item in obstacleBounds)
+        {   
+            // Get the object dimensions in cells            
+            float widthInCells = item.width;
+            float heightInCells = item.height;
             
-            // Fill the grid cells 
-            for (int x = minX; x <= maxX; x++)
-            {
-                for (int y = minY; y <= maxY; y++)
-                {
-                    // Unity has it opposite???
-                    int gridY = gridHeight - 1 - y;
-                    grid[x, gridY] = -1; 
+            // I DONT KNOW WHY PIPES ARE .50 WIDTH AND HEIGHT
+            bool isPipe = (item.width == .5);
+            
+            if (isPipe) {
+                // Handle pipe case (should be 2xany number tall)
+                int pipeX = Mathf.RoundToInt(item.x - originX);
+                int pipeTopY = Mathf.RoundToInt(item.y - originY);
+                
+                // Make pipe 2 cells wide by ground cell tall
+                for (int x = pipeX; x < pipeX + 2; x++) {
+                    for (int y = 0; y <= pipeTopY; y++) {
+                        if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
+                            int gridY = gridHeight - 1 - y;
+                            grid[x, gridY] = -1;
+                        }
+                    }
                 }
             }
 
-
-            Debug.Log($"Obstacle: minX={minX}, maxX={maxX}, minY={minY}, maxY={maxY}, " +
-            $"worldX={item.xMin}-{item.xMax}, worldY={item.yMin}-{item.yMax}");
-        
+            // ONLY handle standard 1x1 blocks
+            else if (widthInCells <= 1.1f && heightInCells <= 1.1f) {
+                // For every 1x1 object, mark only that cell
+                int centerX = Mathf.RoundToInt(item.x - originX);
+                int centerY = Mathf.RoundToInt(item.y - originY);
+                if (centerX >= 0 && centerX < gridWidth && centerY >= 0 && centerY < gridHeight) {
+                    int gridY = gridHeight - 1 - centerY;
+                    grid[centerX, gridY] = -1;
+                }
+            }
+            // Else, larger objects, use original calculation.
+            else {
+                int minX = Math.Max(0, Mathf.CeilToInt(item.xMin - originX));
+                int maxX = Math.Min(gridWidth - 1, Mathf.FloorToInt(item.xMax - originX));
+                int minY = Math.Max(0, Mathf.CeilToInt(item.yMin - originY));
+                int maxY = Math.Min(gridHeight - 1, Mathf.FloorToInt(item.yMax - originY));
+                
+                // Fill the grid cells 
+                for (int x = minX; x <= maxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        int gridY = gridHeight - 1 - y;
+                        grid[x, gridY] = -1; 
+                    }
+                }
+            }
         }
-        
 
         // https://www.reddit.com/r/Unity3D/comments/dc3ttd/how_to_print_a_2d_array_to_the_unity_console_as_a/
         StringBuilder sb = new StringBuilder();
@@ -124,11 +148,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
         // return grid;
     }
-
-
-    //Tracking coordinates 
-
-    //Printing all coordinates
 
     void TrackCoordinates()
     {
@@ -149,20 +168,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             Debug.Log("Player: " + player.position + ", X " + playerRect.width + " Y " + playerRect.height);
 
         }
-        // track real rt
-        foreach (Transform enemy in enemies)
-        {
-            if (enemy != null && IsVisible(enemy))
-            {   
-                Vector2 enemyPosition = new Vector2(enemy.position.x, enemy.position.y);
-                enemyPositions.Add(enemyPosition);
-                // Get object bounds
-                Rect enemyRect = GetObjectBounds(enemy.gameObject);
-                enemyBounds.Add(enemyRect);
-                Debug.Log("Enemy: " + enemy.position + ", X " + enemyRect.width + " Y " + enemyRect.height);
-            }
-        }
-
         foreach (Transform obstacle in obstacles)
         {
             if (obstacle != null && IsVisible(obstacle))
@@ -172,7 +177,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 // Get object bounds
                 Rect obstacleRect = GetObjectBounds(obstacle.gameObject);
                 obstacleBounds.Add(obstacleRect);
-                //rect.width and rect.height may be wrong, go prnt\\
                 Debug.Log("Obstacle: " + obstacle.position + ", X " + obstacleRect.width + " Y " + obstacleRect.height);
             }
         }
@@ -263,4 +267,41 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     // using the visible viewport, basically append all x's and y's, remove x's and y's that are being logged
 
 
+}
+
+
+
+public class Node
+{
+    // Grid coordinates
+    public int gridX;
+    public int gridY;
+
+    public bool walkable;
+    public int gCost;  // Total distance from starting node
+    public int hCost;  // Estimated distance to target (heuristic)
+    
+    // Parent node
+    public Node parent;
+    
+    // F cost - combined cost Heuristic + Distance
+    public int fCost => gCost + hCost;
+    
+    public Node(int x, int y, bool isWalkable)
+    {
+        gridX = x;
+        gridY = y;
+        walkable = isWalkable;
+        gCost = int.MaxValue; // infinity
+        hCost = 0;
+        parent = null;
+    }
+    
+    // For when re-calling
+    public void Reset()
+    {
+        gCost = int.MaxValue;
+        hCost = 0;
+        parent = null;
+    }
 }
