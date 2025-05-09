@@ -3,7 +3,6 @@ using System.Collections; // IMport arraylist
 using System;
 using System.Text;
 using System.Collections.Generic;
-using UnityEngine;
 
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
 {
@@ -18,9 +17,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     private Vector4 viewPort;
     private float viewPortHeight, viewPortWidth;
     private float leftX, rightX, bottomY, topY;
-    private ArrayList playerPositions = new ArrayList();
+    private ArrayList playerPositions = new ArrayList(); // MAKE THESE NOT ARRAYLISTS
     private ArrayList obstaclePositions = new ArrayList();
-
     private ArrayList playerBounds = new ArrayList();
     private ArrayList obstacleBounds = new ArrayList();
 
@@ -83,12 +81,24 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             for (int y = 0; y < gridHeight; y++) 
             {
                 Vector2Int gridPos = new Vector2Int(x, y);
-                grid[x, y] = new Node(gridPos, true); // Default to walkable
+                grid[x, y] = new Node(gridPos, 0); // Default to walkable, player is false
             }
         }   
 
+        // Set player position on grid
+        int playerX = Mathf.RoundToInt(player.position.x - originX);
+        int playerY = Mathf.RoundToInt(player.position.y - originY);
+        if (playerX >= 0 && playerX < gridWidth && playerY >= 0 && playerY < gridHeight) {
+            int gridY = gridHeight - 1 - playerY;
+            grid[playerX, gridY].status = -2;
+        }
+    
+        // Set target position on grid
+        int targetX = (int)viewPort.y - 1; // right X
+        int targetY = (int)viewPort.z - 3; // bottom y - 3
+        grid[targetX, targetY].status = -3; 
 
-        // Make obstacles -1 in grid
+        // Make obstacles not walkable
         foreach (Rect item in obstacleBounds)
         {   
             // Get the object dimensions in cells            
@@ -108,7 +118,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                     for (int y = 0; y <= pipeTopY; y++) {
                         if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
                             int gridY = gridHeight - 1 - y;
-                            grid[x, gridY].walkable = false;
+                            grid[x, gridY].status = -1;
                         }
                     }
                 }
@@ -121,7 +131,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 int centerY = Mathf.RoundToInt(item.y - originY);
                 if (centerX >= 0 && centerX < gridWidth && centerY >= 0 && centerY < gridHeight) {
                     int gridY = gridHeight - 1 - centerY;
-                    grid[centerX, gridY].walkable = false;
+                    grid[centerX, gridY].status = -1;
                 }
             }
             // Else, larger objects, use original calculation.
@@ -135,7 +145,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 for (int x = minX; x <= maxX; x++) {
                     for (int y = minY; y <= maxY; y++) {
                         int gridY = gridHeight - 1 - y;
-                        grid[x, gridY].walkable = false; 
+                        grid[x, gridY].status = -1; 
                     }
                 }
             }
@@ -147,7 +157,19 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         {
             for (int x = 0; x < grid.GetLength(0); x++)
             {   
-                char cellChar = grid[x, y].walkable ? '□' : '■';
+                char cellChar = '□'; 
+                if (grid[x, y].status == -1)
+                {
+                    cellChar = '■';
+                }
+                else if (grid[x,y].status == -2)
+                {
+                    cellChar = '▣';
+                }
+                else if (grid[x,y].status == -3)
+                {
+                    cellChar = '⛝';
+                };
                 sb.Append(cellChar);
                 sb.Append(' ');
             }
@@ -164,7 +186,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         if (mainCamera != null)
         {
             Rect cameraRect = GetCameraBounds(mainCamera);
-            Debug.Log("Space:" + " X " + cameraRect.width + " Y " + cameraRect.height );
+            Debug.Log("Camera Bounds:" + " X " + cameraRect.width + " Y " + cameraRect.height );
         }
 
         if (player != null && IsVisible(player))
@@ -174,7 +196,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             // Get object bounds
             Rect playerRect = GetObjectBounds(player.gameObject);
             playerBounds.Add(playerRect);
-            Debug.Log("Player: " + player.position + ", X " + playerRect.width + " Y " + playerRect.height);
+            //Debug.Log("Player: " + player.position + ", X " + playerRect.width + " Y " + playerRect.height);
 
         }
         foreach (Transform obstacle in obstacles)
@@ -186,7 +208,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 // Get object bounds
                 Rect obstacleRect = GetObjectBounds(obstacle.gameObject);
                 obstacleBounds.Add(obstacleRect);
-                Debug.Log("Obstacle: " + obstacle.position + ", X " + obstacleRect.width + " Y " + obstacleRect.height);
+                
+                //Debug.Log("Obstacle: " + obstacle.position + ", X " + obstacleRect.width + " Y " + obstacleRect.height);
             }
         }
     }
@@ -284,21 +307,13 @@ public class AStar
     private Node[,] grid;
     private int rows;
     private int cols;
-
-    // List of movement directions
-    private Vector2Int[] directions = new Vector2Int[]
-    {
-        //Jump?
-        // Move right?
-
-    };
-
     // Constructor
     public AStar(Node[,] grid)
     {
         this.grid = grid;
         this.rows = grid.GetLength(0);
         this.cols = grid.GetLength(1);
+
     }
     // Heuristic, manhattan distance
     private int heuristic(Vector2 pos1, Vector2 pos2)
@@ -314,24 +329,43 @@ public class AStar
         return (int)(dx - dy);
     }
 
-    private List<Vector2> get_neighbors(Node[,] grid, Node node)
+    private List<Vector2Int> get_neighbors(Node[,] grid, Node node)
     {   
-        List<Vector2> neighbors = new List<Vector2>();
-        List<Vector2> directions = new List<Vector2>();
-        directions.Add(new Vector2(0, 1));
-        directions.Add(new Vector2(1,0));
-        directions.Add(new Vector2(0,-1));
-        directions.Add(new Vector2(-1,0));
+        List<Vector2Int> neighbors = new List<Vector2Int>();
+        List<Vector2Int> directions = new List<Vector2Int>();
+        directions.Add(new Vector2Int(0, 1));
+        directions.Add(new Vector2Int(1,0));
+        directions.Add(new Vector2Int(0,-1));
+        directions.Add(new Vector2Int(-1,0));
         
-        foreach (int(x,y) in directions)
-        {
-            Vector2 cell = ((node.pos[0] + x), (node.pos[1] + y));
-            if (grid[cell[0]][cell[1]] != -1)
+        foreach (Vector2Int direction in directions)
+        {   
+            int x = direction[0];
+            int y = direction[1];
+            Vector2Int cell = new Vector2Int((node.gridPos[0] + x), (node.gridPos[1] + y));
+            if (grid[x, y].status == 0)
             {
-                neighbors.Add(grid);
+                neighbors.Add(cell);
             };
         };
         return neighbors;
+    }
+
+    private void main(Node [,] grid) //List<Vector2Int>
+    {   
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {   
+                if (grid[x, y].status == -2)
+                {
+                    Node source = grid[x,y];
+                }
+            }
+        }
+        //Vector2Int target = grid[4,cols];
+
+        // grid columns is length 
     }
 
 
@@ -341,9 +375,8 @@ public class AStar
 
 public class Node
 {
-    public bool walkable;
+    public int status;
     public Vector2Int gridPos;
-    public Vector2 worldPos;
     
     public int gCost; // Distance from start
     public int hCost; // Distance to target (heuristic value, probably use manhattan)
@@ -352,10 +385,10 @@ public class Node
     // F cost (added)
     public int fCost => gCost + hCost;
     
-    public Node(Vector2Int pos, bool isWalkable)
+    public Node(Vector2Int pos, int status)
     {
         gridPos = pos; // Position on viewport
-        walkable = isWalkable;
+        this.status = status; // Coordinate type
         
         // Initialize costs
         gCost = int.MaxValue;
