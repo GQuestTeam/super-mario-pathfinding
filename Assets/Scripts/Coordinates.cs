@@ -4,6 +4,7 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 
+
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
 {
     public Transform player; // Holds coordinates, Transform
@@ -15,6 +16,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     //private ArrayList cameraPositions = new ArrayList();
     private Vector2 cameraPos;
     private Vector4 viewPort;
+    private Rect cameraRect;
     private float viewPortHeight, viewPortWidth;
     private float leftX, rightX, bottomY, topY;
     private ArrayList playerPositions = new ArrayList(); // MAKE THESE NOT ARRAYLISTS
@@ -94,9 +96,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         }
     
         // Set target position on grid
-        int targetX = (int)viewPort.y - 1; // right X
-        int targetY = (int)viewPort.z - 3; // bottom y - 3
-        grid[targetX, targetY].status = -3; 
+        
+
 
         // Make obstacles not walkable
         foreach (Rect item in obstacleBounds)
@@ -119,6 +120,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                         if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
                             int gridY = gridHeight - 1 - y;
                             grid[x, gridY].status = -1;
+                            Debug.Log(x);
+                            Debug.Log(y);
                         }
                     }
                 }
@@ -151,6 +154,11 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             }
         }
 
+        int targetX = playerX+10; // right X
+        int targetY = gridHeight - 3; 
+        if (targetX >= 0 && targetX < gridWidth && targetY >= 0 && targetY < gridHeight) {
+            grid[targetX, targetY].status = -3;
+        }
         // https://www.reddit.com/r/Unity3D/comments/dc3ttd/how_to_print_a_2d_array_to_the_unity_console_as_a/
         StringBuilder sb = new StringBuilder();
         for (int y = 0; y < grid.GetLength(1); y++)
@@ -168,7 +176,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 }
                 else if (grid[x,y].status == -3)
                 {
-                    cellChar = '⛝';
+                    cellChar = '!';
                 };
                 sb.Append(cellChar);
                 sb.Append(' ');
@@ -185,7 +193,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
         if (mainCamera != null)
         {
-            Rect cameraRect = GetCameraBounds(mainCamera);
+            cameraRect = GetCameraBounds(mainCamera);
             Debug.Log("Camera Bounds:" + " X " + cameraRect.width + " Y " + cameraRect.height );
         }
 
@@ -353,16 +361,31 @@ public class AStar
 
     private void main(Node [,] grid) //List<Vector2Int>
     {   
+        Node source = null; // To initialize
+        Node target = null;
         for (int y = 0; y < grid.GetLength(1); y++)
         {
             for (int x = 0; x < grid.GetLength(0); x++)
             {   
                 if (grid[x, y].status == -2)
                 {
-                    Node source = grid[x,y];
+                    source = grid[x,y];
                 }
+                else if (grid[x, y].status == -3)
+                {
+                    target = grid[x,y];
+                };
             }
         }
+
+        // Initialize Open List (priority queue)
+        Node start_node = source;
+        Dictionary<Node, int> open_lst = new Dictionary<Node, int>();
+        // ADD START_NODE TO DICTIONARY
+//
+        // Initialize Close List
+        Dictionary<Node, int> close_lst = new Dictionary<Node, int>();
+        
         //Vector2Int target = grid[4,cols];
 
         // grid columns is length 
