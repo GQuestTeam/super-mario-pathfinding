@@ -2,6 +2,8 @@ using UnityEngine; // Import Unity
 using System.Collections; // IMport arraylist
 using System;
 using System.Text;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
 {
@@ -81,8 +83,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             for (int y = 0; y < gridHeight; y++) 
             {
                 Vector2Int gridPos = new Vector2Int(x, y);
-                Vector2 worldPos = new Vector2(originX + x + 0.5f, originY + y + 0.5f); // Center of cell
-                grid[x, y] = new Node(gridPos, worldPos, true); // Default to walkable
+                grid[x, y] = new Node(gridPos, true); // Default to walkable
             }
         }   
 
@@ -278,6 +279,66 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 }
 
 
+public class AStar
+{   
+    private Node[,] grid;
+    private int rows;
+    private int cols;
+
+    // List of movement directions
+    private Vector2Int[] directions = new Vector2Int[]
+    {
+        //Jump?
+        // Move right?
+
+    };
+
+    // Constructor
+    public AStar(Node[,] grid)
+    {
+        this.grid = grid;
+        this.rows = grid.GetLength(0);
+        this.cols = grid.GetLength(1);
+    }
+    // Heuristic, manhattan distance
+    private int heuristic(Vector2 pos1, Vector2 pos2)
+    {
+        float dx_1 = Math.Abs(pos1[0] - pos2[0]);
+        float dx_2 = rows - Math.Abs(pos1[0] - pos2[0]);
+        float dx = Math.Min(dx_1, dx_2);
+
+        float dy_1 = Math.Abs(pos1[1] - pos2[1]);
+        float dy_2 = cols - Math.Abs(pos1[1] - pos2[0]);
+        float dy = Math.Min(dy_1, dy_2);
+
+        return (int)(dx - dy);
+    }
+
+    private List<Vector2> get_neighbors(Node[,] grid, Node node)
+    {   
+        List<Vector2> neighbors = new List<Vector2>();
+        List<Vector2> directions = new List<Vector2>();
+        directions.Add(new Vector2(0, 1));
+        directions.Add(new Vector2(1,0));
+        directions.Add(new Vector2(0,-1));
+        directions.Add(new Vector2(-1,0));
+        
+        foreach (int(x,y) in directions)
+        {
+            Vector2 cell = ((node.pos[0] + x), (node.pos[1] + y));
+            if (grid[cell[0]][cell[1]] != -1)
+            {
+                neighbors.Add(grid);
+            };
+        };
+        return neighbors;
+    }
+
+
+
+}
+
+
 public class Node
 {
     public bool walkable;
@@ -291,10 +352,9 @@ public class Node
     // F cost (added)
     public int fCost => gCost + hCost;
     
-    public Node(Vector2Int pos, Vector2 worldPosition, bool isWalkable)
+    public Node(Vector2Int pos, bool isWalkable)
     {
-        gridPos = pos;
-        worldPos = worldPosition;
+        gridPos = pos; // Position on viewport
         walkable = isWalkable;
         
         // Initialize costs
