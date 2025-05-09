@@ -76,7 +76,15 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         float originX = viewPort.x; // left X
         float originY = viewPort.z; // bottom Y
         
-    
+        for (int x = 0; x < gridWidth; x++) 
+        {
+            for (int y = 0; y < gridHeight; y++) 
+            {
+                Vector2Int gridPos = new Vector2Int(x, y);
+                Vector2 worldPos = new Vector2(originX + x + 0.5f, originY + y + 0.5f); // Center of cell
+                grid[x, y] = new Node(gridPos, worldPos, true); // Default to walkable
+            }
+        }   
 
 
         // Make obstacles -1 in grid
@@ -99,7 +107,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                     for (int y = 0; y <= pipeTopY; y++) {
                         if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
                             int gridY = gridHeight - 1 - y;
-                            grid[x, gridY] = -1;
+                            grid[x, gridY].walkable = false;
                         }
                     }
                 }
@@ -112,7 +120,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 int centerY = Mathf.RoundToInt(item.y - originY);
                 if (centerX >= 0 && centerX < gridWidth && centerY >= 0 && centerY < gridHeight) {
                     int gridY = gridHeight - 1 - centerY;
-                    grid[centerX, gridY] = -1;
+                    grid[centerX, gridY].walkable = false;
                 }
             }
             // Else, larger objects, use original calculation.
@@ -126,7 +134,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 for (int x = minX; x <= maxX; x++) {
                     for (int y = minY; y <= maxY; y++) {
                         int gridY = gridHeight - 1 - y;
-                        grid[x, gridY] = -1; 
+                        grid[x, gridY].walkable = false; 
                     }
                 }
             }
@@ -138,7 +146,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         {
             for (int x = 0; x < grid.GetLength(0); x++)
             {   
-                char cellChar = grid[x, y] == 0 ? '□' : '■';
+                char cellChar = grid[x, y].walkable ? '□' : '■';
                 sb.Append(cellChar);
                 sb.Append(' ');
             }
@@ -270,34 +278,31 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 }
 
 
-
 public class Node
 {
-    // Grid coordinates
-    public int gridX;
-    public int gridY;
-
     public bool walkable;
-    public int gCost;  // Total distance from starting node
-    public int hCost;  // Estimated distance to target (heuristic)
+    public Vector2Int gridPos;
+    public Vector2 worldPos;
     
-    // Parent node
+    public int gCost; // Distance from start
+    public int hCost; // Distance to target (heuristic value, probably use manhattan)
     public Node parent;
     
-    // F cost - combined cost Heuristic + Distance
+    // F cost (added)
     public int fCost => gCost + hCost;
     
-    public Node(int x, int y, bool isWalkable)
+    public Node(Vector2Int pos, Vector2 worldPosition, bool isWalkable)
     {
-        gridX = x;
-        gridY = y;
+        gridPos = pos;
+        worldPos = worldPosition;
         walkable = isWalkable;
-        gCost = int.MaxValue; // infinity
+        
+        // Initialize costs
+        gCost = int.MaxValue;
         hCost = 0;
         parent = null;
     }
     
-    // For when re-calling
     public void Reset()
     {
         gCost = int.MaxValue;
