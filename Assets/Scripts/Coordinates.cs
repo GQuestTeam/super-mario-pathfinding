@@ -3,6 +3,7 @@ using System.Collections; // IMport arraylist
 using System;
 using System.Text;
 using System.Collections.Generic;
+using Clrain.Collections;
 
 
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
@@ -24,8 +25,13 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     private ArrayList playerBounds = new ArrayList();
     private ArrayList obstacleBounds = new ArrayList();
 
+    // Store path information
+    private List<Vector2Int> pathMovements = null;
+    private List<Vector2Int> pathNodes = new List<Vector2Int>();
+
 
     private Node[,] grid;
+
     // TODO SECTION
 
     // Camera Positions SHOULD NOT BE STORED IN ARRAYLIST
@@ -59,7 +65,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             obstacleBounds.Clear();
             TrackCoordinates();
             makeArray();
-            TrackCameraPosition();
+          
+            //PrintGrid();
             frameCounter = 0;
         }
     }
@@ -67,7 +74,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
 
 
     void makeArray()
-    {   
+    {    
+        TrackCameraPosition();
         // Set grid width and Height
         int gridWidth = (int)(viewPortWidth ); 
         int gridHeight = (int)(viewPortHeight );
@@ -90,6 +98,10 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         // Set player position on grid
         int playerX = Mathf.RoundToInt(player.position.x - originX);
         int playerY = Mathf.RoundToInt(player.position.y - originY);
+
+        playerX = Mathf.Clamp(playerX, 0, gridWidth - 1);
+        playerY = Mathf.Clamp(playerY, 0, gridHeight - 1);
+        
         if (playerX >= 0 && playerX < gridWidth && playerY >= 0 && playerY < gridHeight) {
             int gridY = gridHeight - 1 - playerY;
             grid[playerX, gridY].status = -2;
@@ -159,6 +171,44 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         if (targetX >= 0 && targetX < gridWidth && targetY >= 0 && targetY < gridHeight) {
             grid[targetX, targetY].status = -3;
         }
+        
+        
+        AStar astar = new AStar(grid);
+        pathMovements = astar.main();
+
+        // Mark path nodes in grid with -4 status
+        // Find source node
+        Vector2Int currentPos = Vector2Int.zero;
+        bool foundSource = false;
+
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {
+                if (grid[x, y].status == -2) // Player position
+                {
+                    currentPos = new Vector2Int(x, y);
+                    foundSource = true;
+                    break;
+                }
+            }
+            if (foundSource) break;
+        }
+        
+
+        // Clear previous path nodes
+        pathNodes.Clear();
+        pathNodes.Add(currentPos);
+
+        for (int i = 1; i < pathMovements.Count; i++)
+        {
+            currentPos.x += pathMovements[i].x;
+            currentPos.y += pathMovements[i].y;
+            pathNodes.Add(new Vector2Int(currentPos.x, currentPos.y));
+            grid[currentPos.x, currentPos.y].status = -4;
+        }
+        
+
         // https://www.reddit.com/r/Unity3D/comments/dc3ttd/how_to_print_a_2d_array_to_the_unity_console_as_a/
         StringBuilder sb = new StringBuilder();
         for (int y = 0; y < grid.GetLength(1); y++)
@@ -177,7 +227,11 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 else if (grid[x,y].status == -3)
                 {
                     cellChar = '!';
-                };
+                }
+                else if (grid[x,y].status == -4)
+                {
+                    cellChar = '*';
+                }
                 sb.Append(cellChar);
                 sb.Append(' ');
             }
@@ -186,6 +240,69 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         Debug.Log(sb.ToString());
 
         // return grid;
+    }
+
+    void PrintGrid()
+    {
+        if (grid == null) return;
+        
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("Grid with A* Path:");
+        
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {   
+                char cellChar;
+                
+                switch (grid[x, y].status)
+                {
+                    case -1: // Wall
+                        cellChar = '■';
+                        break;
+                    case -2: // Player
+                        cellChar = '▣';
+                        break;
+                    case -3: // Target
+                        cellChar = '!';
+                        break;
+                    case -4: // Path
+                        cellChar = '*';
+                        break;
+                    default: // Empty space
+                        cellChar = '□';
+                        break;
+                }
+                
+                sb.Append(cellChar);
+                sb.Append(' ');
+            }
+            sb.AppendLine();
+        }
+        
+        // Print path movement info
+        if (pathMovements != null && pathMovements.Count > 0)
+        {
+            sb.AppendLine($"Path found with {pathMovements.Count} movements");
+            sb.Append("Movements: ");
+            foreach (Vector2Int move in pathMovements)
+            {
+                sb.Append($"({move.x},{move.y}) ");
+            }
+            sb.AppendLine();
+            
+            sb.Append("Path coordinates: ");
+            foreach (Vector2Int node in pathNodes)
+            {
+                sb.Append($"({node.x},{node.y}) ");
+            }
+        }
+        else
+        {
+            sb.AppendLine("No path found!");
+        }
+        
+        Debug.Log(sb.ToString());
     }
 
     void TrackCoordinates()
@@ -324,43 +441,42 @@ public class AStar
 
     }
     // Heuristic, manhattan distance
-    private int heuristic(Vector2 pos1, Vector2 pos2)
+     private int heuristic(Vector2Int pos1, Vector2Int pos2)
     {
-        float dx_1 = Math.Abs(pos1[0] - pos2[0]);
-        float dx_2 = rows - Math.Abs(pos1[0] - pos2[0]);
-        float dx = Math.Min(dx_1, dx_2);
-
-        float dy_1 = Math.Abs(pos1[1] - pos2[1]);
-        float dy_2 = cols - Math.Abs(pos1[1] - pos2[0]);
-        float dy = Math.Min(dy_1, dy_2);
-
-        return (int)(dx - dy);
+        int dx = Mathf.Abs(pos1.x - pos2.x);
+        int dy = Mathf.Abs(pos1.y - pos2.y);
+        return dx + dy; 
     }
 
     private List<Vector2Int> get_neighbors(Node[,] grid, Node node)
     {   
         List<Vector2Int> neighbors = new List<Vector2Int>();
-        List<Vector2Int> directions = new List<Vector2Int>();
-        directions.Add(new Vector2Int(0, 1));
-        directions.Add(new Vector2Int(1,0));
-        directions.Add(new Vector2Int(0,-1));
-        directions.Add(new Vector2Int(-1,0));
+        Vector2Int[] directions = new Vector2Int[] {
+            new Vector2Int(0, 1),   // Up
+            new Vector2Int(1, 0),   // Right
+            new Vector2Int(0, -1),  // Down
+            new Vector2Int(-1, 0)   // Left
+        };
         
         foreach (Vector2Int direction in directions)
         {   
-            int x = direction[0];
-            int y = direction[1];
-            Vector2Int cell = new Vector2Int((node.gridPos[0] + x), (node.gridPos[1] + y));
-            if (grid[x, y].status == 0)
+            int newX = node.gridPos.x + direction.x;
+            int newY = node.gridPos.y + direction.y;
+            if (newX >= 0 && newX < grid.GetLength(0) && 
+                newY >= 0 && newY < grid.GetLength(1))
             {
-                neighbors.Add(cell);
-            };
-        };
+                // Allow nodes that are either walkable (0) OR the target (-3)
+                if (grid[newX, newY].status == 0 || grid[newX, newY].status == -3)
+                {
+                    neighbors.Add(new Vector2Int(newX, newY));
+                }
+            }
+        }
         return neighbors;
     }
 
-    private void main(Node [,] grid) //List<Vector2Int>
-    {   
+    public List<Vector2Int> main() 
+    {      
         Node source = null; // To initialize
         Node target = null;
         for (int y = 0; y < grid.GetLength(1); y++)
@@ -374,21 +490,106 @@ public class AStar
                 else if (grid[x, y].status == -3)
                 {
                     target = grid[x,y];
-                };
+                }
             }
         }
 
-        // Initialize Open List (priority queue)
-        Node start_node = source;
-        Dictionary<Node, int> open_lst = new Dictionary<Node, int>();
-        // ADD START_NODE TO DICTIONARY
-//
-        // Initialize Close List
-        Dictionary<Node, int> close_lst = new Dictionary<Node, int>();
-        
-        //Vector2Int target = grid[4,cols];
+        if (source == null || target == null)
+        {
+            Debug.LogError("Source or target not found in grid");
+            return null;
+        }
 
-        // grid columns is length 
+        // Reset nodes for pathfinding
+        for (int y = 0; y < grid.GetLength(1); y++) {
+            for (int x = 0; x < grid.GetLength(0); x++) {
+                grid[x, y].Reset();
+            }
+        }
+
+        source.gCost = 0;
+        source.hCost = heuristic(source.gridPos, target.gridPos);
+
+        // Initialize Open List (priority queue)
+        PriorityQueue<Node, int> open_lst = new PriorityQueue<Node, int>();
+        
+        // ADD START_NODE TO DICTIONARY
+        open_lst.Enqueue(source, source.fCost);
+        // Initialize Close List
+        Dictionary<Vector2Int, bool> closed_lst = new Dictionary<Vector2Int, bool>();
+        
+        // Repeat until nothing left in open list
+        while (open_lst.Count > 0)
+        {
+            // look for the lowest F cost node
+            Node current = open_lst.Dequeue();
+
+            // Skip if already in closed set
+            if (closed_lst.ContainsKey(current.gridPos))
+            {
+                continue;
+            }
+            closed_lst[current.gridPos] = true;
+
+            // If current node's grid position == target node's grid position
+            if (current.gridPos.x == target.gridPos.x && current.gridPos.y == target.gridPos.y)
+            {
+                List<Vector2Int> path = new List<Vector2Int>();
+                Node pathNode = current;
+
+                while (current != null)
+                {
+                  path.Add(current.gridPos);
+                  current = current.parent;  
+                }
+                // Return list of tuples
+                path.Reverse(); 
+                List<Vector2Int> moveset = new List<Vector2Int>();  
+
+                for (int i = 1; i < path.Count; i++)
+                {
+                    int x = path[i].x - path[i-1].x;
+                    int y = path[i].y - path[i-1].y;
+                    moveset.Add(new Vector2Int(x,y));
+                }
+
+                return moveset;
+            }
+            
+
+            foreach (Vector2Int neighborPos in get_neighbors(this.grid, current))
+            {
+                if (closed_lst.ContainsKey(neighborPos))
+                {
+                    continue;
+                }
+                
+                Node neighbor = grid[neighborPos.x, neighborPos.y];
+                int newGCost = current.gCost + 1;
+                
+
+                
+                if (newGCost < neighbor.gCost)
+                {
+                    // Update node
+                    neighbor.parent = current;
+                    neighbor.gCost = newGCost;
+                    
+                    // Only calculate heuristic if not already done
+                    if (neighbor.hCost == 0)
+                    {
+                        neighbor.hCost = heuristic(neighborPos, target.gridPos);
+                    }
+                    
+                    // Add to open list to be processed
+                    open_lst.Enqueue(neighbor, neighbor.fCost);
+                }
+            }
+        }
+        
+        // No path found
+        Debug.LogWarning("No path found from source to target");
+        return null;
     }
 
 
@@ -408,7 +609,7 @@ public class Node
     // F cost (added)
     public int fCost => gCost + hCost;
     
-    public Node(Vector2Int pos, int status)
+    public Node(Vector2Int pos, int status = 0, Node parent = null)
     {
         gridPos = pos; // Position on viewport
         this.status = status; // Coordinate type
@@ -416,7 +617,7 @@ public class Node
         // Initialize costs
         gCost = int.MaxValue;
         hCost = 0;
-        parent = null;
+        this.parent = parent;
     }
     
     public void Reset()
