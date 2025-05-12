@@ -12,11 +12,11 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     public Transform[] obstacles;
     private Camera mainCamera; // Camera
     private int frameCounter = 0;
-    private int printInterval = 50; // Print every 200 frames
+    private int printInterval = 1; // Print every 200 frames
     // Map data
     //private ArrayList cameraPositions = new ArrayList();
     private Vector2 cameraPos;
-    private Vector4 viewPort;
+    public Vector4 viewPort;
     private Rect cameraRect;
     private float viewPortHeight, viewPortWidth;
     private float leftX, rightX, bottomY, topY;
@@ -26,11 +26,11 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     private ArrayList obstacleBounds = new ArrayList();
 
     // Store path information
-    private List<Vector2Int> pathMovements = null;
-    private List<Vector2Int> pathNodes = new List<Vector2Int>();
+    public List<Vector2Int> pathMovements = null;
+    public List<Vector2Int> pathNodes = new List<Vector2Int>();
 
 
-    private Node[,] grid;
+    public Node[,] grid;
 
     // TODO SECTION
 
@@ -65,6 +65,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             obstacleBounds.Clear();
             TrackCoordinates();
             makeArray();
+   
           
             //PrintGrid();
             frameCounter = 0;
@@ -205,7 +206,14 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             currentPos.x += pathMovements[i].x;
             currentPos.y += pathMovements[i].y;
             pathNodes.Add(new Vector2Int(currentPos.x, currentPos.y));
-            grid[currentPos.x, currentPos.y].status = -4;
+            
+            // Only mark as path if it's not already the player or target
+            if (grid[currentPos.x, currentPos.y].status != -2 && 
+                grid[currentPos.x, currentPos.y].status != -3 &&
+                grid[currentPos.x, currentPos.y].status != -1)
+            {
+                grid[currentPos.x, currentPos.y].status = -4;
+            }
         }
         
 
@@ -238,9 +246,45 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             sb.AppendLine();
         }
         Debug.Log(sb.ToString());
-
-        // return grid;
+        VisualizePath();
+        MarioJump();
+        
+        
     }
+    void VisualizePath()
+    {
+        // Clear old container
+        GameObject container = GameObject.Find("PathVisualization");
+        if (container != null)
+        {
+            Destroy(container);
+        }
+        
+        // Create a new container
+        container = new GameObject("PathVisualization");
+        
+        if (pathNodes == null || pathNodes.Count < 2) return;
+        
+        // Visualize each node in the path
+        for (int i = 0; i < pathNodes.Count; i++)
+        {
+            Vector2Int node = pathNodes[i];
+            
+            // Calculate world position
+            Vector3 worldPos = new Vector3(
+                viewPort.x + node.x,
+                viewPort.z + (grid.GetLength(1) - 1 - node.y),
+                -0.5f // In front of other objects
+            );
+            
+            // Create sphere
+            GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            marker.transform.position = worldPos;
+            marker.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+            marker.transform.parent = container.transform;
+        }
+    }
+
 
     void PrintGrid()
     {
@@ -416,6 +460,52 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         
         return visible;
     }
+    
+    void MarioJump()
+    {
+        if (pathNodes == null || pathNodes.Count < 2) return;
+
+        // Find player
+        GameObject mario = GameObject.FindGameObjectWithTag("Player");
+        if (mario == null) return;
+
+        // Get RigidBody2D
+        Rigidbody2D rb = mario.GetComponent<Rigidbody2D>();
+        PlayerMovement movement = mario.GetComponent<PlayerMovement>();
+        Player playerComponent = mario.GetComponent<Player>();
+
+        if (rb == null) return;
+
+        // Overwrite PlayerMovement.cs
+        movement.enabled = false;
+
+
+        // Get current pos and next pos
+        Vector2Int currentPos = pathNodes[0];
+        Vector2Int nextPos = pathNodes[1];
+
+
+        // Always move right
+        float horizontalInput = 1.0f;
+
+        rb.velocity = new Vector2(movement.moveSpeed * horizontalInput, rb.velocity.y);
+
+        // Check if mario needs to jump
+        if (nextPos.y < currentPos.y) // Lower y, Unity is weird
+        {   
+            int heightDifference = currentPos.y - nextPos.y;
+            // Only jump if he is grounded
+            if (movement.grounded)
+            {
+                float jumpForce = movement.jumpForce;
+
+                if (heightDifference > 2){
+                    jumpForce *= 1.5f; // Forgot actual height, check later
+                }
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            }
+        }
+    }
 
 
     
@@ -492,6 +582,9 @@ public class AStar
         float maxTime = 1f;
         // Done for calculations. 
         Vector2 start = new Vector2(node.gridPos.x, node.gridPos.y);
+
+        // Temp to allow code to run: DELETE LATER
+        float moveSpeed = 0;
        
        // Check landing areas for differents times of jump
         for (float t = 0; t < maxTime; t += timeStep)
@@ -505,7 +598,8 @@ public class AStar
             Vector2Int gridPos = Vector2Int.RoundToInt(simulatedPos);
         }
 
-        jumpTargets.Add(gridPos);
+        // Commented out to make coed run.
+        //jumpTargets.Add(gridPos);
             
         // return list of possible targets. 
         return jumpTargets;
@@ -667,3 +761,4 @@ public class Node
         parent = null;
     }
 }
+
