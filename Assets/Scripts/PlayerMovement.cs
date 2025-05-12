@@ -1,4 +1,8 @@
 using UnityEngine;
+using System.Timers;
+using System;
+using System.Collections;
+using System.Diagnostics;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerMovement : MonoBehaviour
@@ -21,6 +25,9 @@ public class PlayerMovement : MonoBehaviour
     public bool running => Mathf.Abs(velocity.x) > 0.25f || Mathf.Abs(inputAxis) > 0.25f;
     public bool sliding => (inputAxis > 0f && velocity.x < 0f) || (inputAxis < 0f && velocity.x > 0f);
     public bool falling => velocity.y < 0f && !grounded;
+
+    private static Timer timer;
+    private static bool timerFinished = false;
 
     private void Awake()
     {
@@ -45,19 +52,16 @@ public class PlayerMovement : MonoBehaviour
         inputAxis = 0f;
         jumping = false;
     }
+    
+    // private void Update()
+    // {
+    //     HorizontalMovement();
 
-    private void Update()
-    {
-        HorizontalMovement();
+    //     grounded = rb.Raycast(Vector2.down);
 
-        grounded = rb.Raycast(Vector2.down);
+    //     ApplyGravity();
+    // }
 
-        if (grounded) {
-            GroundedMovement();
-        }
-
-        ApplyGravity();
-    }
 
     private void FixedUpdate()
     {
@@ -73,10 +77,11 @@ public class PlayerMovement : MonoBehaviour
         rb.MovePosition(position);
     }
 
-    private void HorizontalMovement()
+    public void HorizontalMovement()
     {
         // Accelerate / decelerate
-        inputAxis = Input.GetAxis("Horizontal");
+        // inputAxis = Input.GetAxis("Horizontal");
+        inputAxis = 1f;
         velocity.x = Mathf.MoveTowards(velocity.x, inputAxis * moveSpeed, moveSpeed * Time.deltaTime);
 
         // Check if running into a wall
@@ -92,21 +97,34 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private void GroundedMovement()
+
+    
+
+    public IEnumerator GroundedMovement(float duration)
     {
         // Prevent gravity from infinitly building up
         velocity.y = Mathf.Max(velocity.y, 0f);
         jumping = velocity.y > 0f;
 
-        // Perform jump
-        if (Input.GetButtonDown("Jump"))
+        Stopwatch s = new Stopwatch();
+        s.Start();
+            
+
+        
+        // While loop that continues until timer finishes
+        while (s.Elapsed < TimeSpan.FromMilliseconds(duration)) 
         {
             velocity.y = jumpForce;
             jumping = true;
+            yield return null;
         }
+        
+     
     }
+    
 
-    private void ApplyGravity()
+
+    public void ApplyGravity()
     {
         // Check if falling
         bool falling = velocity.y < 0f || !Input.GetButton("Jump");

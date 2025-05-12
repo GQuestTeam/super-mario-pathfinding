@@ -4,6 +4,7 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using Clrain.Collections;
+using System.Timers;
 
 
 public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoBehaviour", which is needed for any script that is being attached to GameObject
@@ -65,8 +66,24 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             obstacleBounds.Clear();
             TrackCoordinates();
             makeArray();
-   
-          
+            /*
+            if  (keypress = a)
+                A* = true
+
+            if (keypress = x)
+                A* = false
+                theta* = false
+
+            elif (keypress = b)
+                theta* = true
+
+            if a* == true
+                makeArrayA*();
+
+            if theta* == true
+                makeArrayTheta*
+            */
+
             //PrintGrid();
             frameCounter = 0;
         }
@@ -78,8 +95,10 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     {    
         TrackCameraPosition();
         // Set grid width and Height
-        int gridWidth = (int)(viewPortWidth ); 
-        int gridHeight = (int)(viewPortHeight );
+        int gridWidth = Mathf.CeilToInt(viewPortWidth);
+        int gridHeight = Mathf.CeilToInt(viewPortHeight);
+
+
         
         // Create grid (it's just a matrix)
         grid = new Node[gridWidth, gridHeight];
@@ -133,8 +152,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                         if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
                             int gridY = gridHeight - 1 - y;
                             grid[x, gridY].status = -1;
-                            Debug.Log(x);
-                            Debug.Log(y);
                         }
                     }
                 }
@@ -250,6 +267,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         MarioJump();
         
         
+        
     }
     void VisualizePath()
     {
@@ -355,7 +373,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         if (mainCamera != null)
         {
             cameraRect = GetCameraBounds(mainCamera);
-            Debug.Log("Camera Bounds:" + " X " + cameraRect.width + " Y " + cameraRect.height );
         }
 
         if (player != null && IsVisible(player))
@@ -365,7 +382,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             // Get object bounds
             Rect playerRect = GetObjectBounds(player.gameObject);
             playerBounds.Add(playerRect);
-            //Debug.Log("Player: " + player.position + ", X " + playerRect.width + " Y " + playerRect.height);
 
         }
         foreach (Transform obstacle in obstacles)
@@ -378,7 +394,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                 Rect obstacleRect = GetObjectBounds(obstacle.gameObject);
                 obstacleBounds.Add(obstacleRect);
                 
-                //Debug.Log("Obstacle: " + obstacle.position + ", X " + obstacleRect.width + " Y " + obstacleRect.height);
             }
         }
     }
@@ -413,7 +428,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     {
         // Store camera position
         cameraPos = new Vector2(mainCamera.transform.position.x, mainCamera.transform.position.y);
-        Debug.Log("Camera Position: " + cameraPos);
         
         viewPortHeight = 2f * mainCamera.orthographicSize; //represents half the height of the camera's viewport in world units
         viewPortWidth = viewPortHeight * mainCamera.aspect; // width-to-height ratio of the camera 
@@ -426,7 +440,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         );
     
 
-        Debug.Log("Camera Dimensions: " + viewPort);
 
     }
 
@@ -469,44 +482,59 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         GameObject mario = GameObject.FindGameObjectWithTag("Player");
         if (mario == null) return;
 
-        // Get RigidBody2D
-        Rigidbody2D rb = mario.GetComponent<Rigidbody2D>();
         PlayerMovement movement = mario.GetComponent<PlayerMovement>();
-        Player playerComponent = mario.GetComponent<Player>();
-
-        if (rb == null) return;
-
-        // Overwrite PlayerMovement.cs
-        movement.enabled = false;
-
+        Rigidbody2D rb = mario.GetComponent<Rigidbody2D>();
 
         // Get current pos and next pos
-        Vector2Int currentPos = pathNodes[0];
-        Vector2Int nextPos = pathNodes[1];
+        Vector2Int currentPos = new Vector2Int(0,0);
+        Vector2Int nextPos = new Vector2Int(0,0);
+        int blockJump = 0;
+        // Get next 5 path nodes
+        for (int i = 0; i < 5; i++) {
+            currentPos = pathNodes[i];
+            nextPos = pathNodes[i+1];
 
-
-        // Always move right
-        float horizontalInput = 1.0f;
-
-        rb.velocity = new Vector2(movement.moveSpeed * horizontalInput, rb.velocity.y);
-
-        // Check if mario needs to jump
-        if (nextPos.y < currentPos.y) // Lower y, Unity is weird
-        {   
-            int heightDifference = currentPos.y - nextPos.y;
-            // Only jump if he is grounded
-            if (movement.grounded)
-            {
-                float jumpForce = movement.jumpForce;
-
-                if (heightDifference > 2){
-                    jumpForce *= 1.5f; // Forgot actual height, check later
-                }
-                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            if (nextPos.y < currentPos.y){
+                blockJump += 1;
             }
         }
-    }
+        // For every
+        Debug.Log(blockJump);
+    
+        movement.HorizontalMovement();
+        
+        if (blockJump != 0 && pathNodes[0].y > pathNodes[1].y){
+            bool grounded = rb.Raycast(Vector2.down);
+            Debug.Log("true");
+            if (blockJump < 2 && grounded) 
+            {   
+                Debug.Log("jumping short");
+                StartCoroutine(movement.GroundedMovement(1f));
+            }   
+            else if (blockJump < 4 && grounded)
+            {   
+                Debug.Log("Jumping medium");
+                StartCoroutine(movement.GroundedMovement(30f));
+            }
 
+            else if (blockJump < 6 && grounded)
+            {
+                Debug.Log("Jumping long");
+                StartCoroutine(movement.GroundedMovement(50f));
+            }
+        
+        }
+
+        
+
+            
+            // For seconds make input true
+            
+
+            
+        
+        movement.ApplyGravity();
+    }
 
     
 
