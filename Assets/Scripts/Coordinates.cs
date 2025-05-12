@@ -462,6 +462,7 @@ public class AStar
         {   
             int newX = node.gridPos.x + direction.x;
             int newY = node.gridPos.y + direction.y;
+
             if (newX >= 0 && newX < grid.GetLength(0) && 
                 newY >= 0 && newY < grid.GetLength(1))
             {
@@ -472,8 +473,47 @@ public class AStar
                 }
             }
         }
+
+        neighbors.AddRange(GetJumpTargets(node));
         return neighbors;
     }
+
+   
+    private List<Vector2Int> GetJumpTargets(Node node)
+    { 
+        // This list will keep track of possible nodes in which we can land.  
+        List<Vector2Int> jumpTargets = new List<Vector2Int>();
+        // Physics variables. 
+        float initalVelocityY = 5f;
+        float gravity = -9.8f;
+        // This probably needs to be frames. so maybe 1/30?
+        float timeStep = 0.1f;
+        // Change this
+        float maxTime = 1f;
+        // Done for calculations. 
+        Vector2 start = new Vector2(node.gridPos.x, node.gridPos.y);
+       
+       // Check landing areas for differents times of jump
+        for (float t = 0; t < maxTime; t += timeStep)
+        {
+            // Formula for horizontal and vertical displacements. 
+            float dx  = moveSpeed * t;
+            float dy  = initalVelocityY * t + 0.5f* gravity * t * t;
+
+            // New position. 
+            Vector2 simulatedPos = start + new Vector2(dx, dy);
+            Vector2Int gridPos = Vector2Int.RoundToInt(simulatedPos);
+        }
+
+        jumpTargets.Add(gridPos);
+            
+        // return list of possible targets. 
+        return jumpTargets;
+
+
+    }
+
+
 
     public List<Vector2Int> main() 
     {      
