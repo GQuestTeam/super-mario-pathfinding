@@ -790,3 +790,293 @@ public class Node
     }
 }
 
+
+// My Implementation of lazy theta* 
+public class LazyThetaStar
+{   
+    private Node[,] grid;
+    private int rows;
+    private int cols;
+    // Constructor
+    public AStar(Node[,] grid)
+    {
+        this.grid = grid;
+        this.rows = grid.GetLength(0);
+        this.cols = grid.GetLength(1);
+
+    }
+    // Heuristic, manhattan distance
+     private int heuristic(Vector2Int pos1, Vector2Int pos2)
+    {
+        int dx = Mathf.Abs(pos1.x - pos2.x);
+        int dy = Mathf.Abs(pos1.y - pos2.y);
+        return dx + dy; 
+    }
+
+    private List<Vector2Int> get_neighbors(Node[,] grid, Node node)
+    {   
+        List<Vector2Int> neighbors = new List<Vector2Int>();
+        Vector2Int[] directions = new Vector2Int[] {
+            new Vector2Int(0, 1),   // Up
+            new Vector2Int(1, 0),   // Right
+            new Vector2Int(0, -1),  // Down
+            new Vector2Int(-1, 0)   // Left
+        };
+        
+        foreach (Vector2Int direction in directions)
+        {   
+            int newX = node.gridPos.x + direction.x;
+            int newY = node.gridPos.y + direction.y;
+
+            if (newX >= 0 && newX < grid.GetLength(0) && 
+                newY >= 0 && newY < grid.GetLength(1))
+            {
+                // Allow nodes that are either walkable (0) OR the target (-3)
+                if (grid[newX, newY].status == 0 || grid[newX, newY].status == -3)
+                {
+                    neighbors.Add(new Vector2Int(newX, newY));
+                }
+            }
+        }
+
+        neighbors.AddRange(GetJumpTargets(node));
+        return neighbors;
+    }
+
+   bool in_sight(Node a, Node b)
+   {
+    // Need to get coordinates
+    int x1 = a.gridPos.x;
+    int y1 = a.gridPos.y;
+
+    int x2 = b.gridPos.x;
+    int y2 = b.gridPos.y;
+
+    if (x2 > x1){
+        x1 = 1
+    }
+    else if(x2 < x1)
+    {
+        x1 = -1
+    }
+    else
+    {
+        x1 = 0
+    }
+    if (y2 > y1){
+        y1 = 1
+    }
+    else if(y2 < y1)
+    {
+        y1 = -1
+    }
+    else
+    {
+        y1 = 0
+    }
+
+    while (x1 != x2 && y1 != y2)
+    {
+        if (x1 != x2)
+        {
+            x1 = x1 + stepx;
+        }
+        if (y1 != y2)
+        {
+            y1 = y1 + stepy;
+        }
+        if (grid[x1,y1].status == -1)
+        {
+            return false;
+        }
+    }
+
+    // If we got here. There is a clear path. 
+    return true;
+   }
+
+
+
+
+
+
+    private List<Vector2Int> GetJumpTargets(Node node)
+    { 
+        // This list will keep track of possible nodes in which we can land.  
+        List<Vector2Int> jumpTargets = new List<Vector2Int>();
+        // Physics variables. 
+        float initalVelocityY = 5f;
+        float gravity = -9.8f;
+        // This probably needs to be frames. so maybe 1/30?
+        float timeStep = 0.1f;
+        // Change this
+        float maxTime = 1f;
+        // Done for calculations. 
+        Vector2 start = new Vector2(node.gridPos.x, node.gridPos.y);
+
+        // Temp to allow code to run: DELETE LATER
+        float moveSpeed = 0;
+       
+       // Check landing areas for differents times of jump
+        for (float t = 0; t < maxTime; t += timeStep)
+        {
+            // Formula for horizontal and vertical displacements. 
+            float dx  = moveSpeed * t;
+            float dy  = initalVelocityY * t + 0.5f* gravity * t * t;
+
+            // New position. 
+            Vector2 simulatedPos = start + new Vector2(dx, dy);
+            Vector2Int gridPos = Vector2Int.RoundToInt(simulatedPos);
+        }
+
+        // Commented out to make coed run.
+        //jumpTargets.Add(gridPos);
+            
+        // return list of possible targets. 
+        return jumpTargets;
+
+
+    }
+
+
+
+    public List<Vector2Int> main() 
+    {      
+        Node source = null; // To initialize
+        Node target = null;
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {   
+                if (grid[x, y].status == -2)
+                {
+                    source = grid[x,y];
+                }
+                else if (grid[x, y].status == -3)
+                {
+                    target = grid[x,y];
+                }
+            }
+        }
+
+        if (source == null || target == null)
+        {
+            Debug.LogError("Source or target not found in grid");
+            return null;
+        }
+
+        // Reset nodes for pathfinding
+        for (int y = 0; y < grid.GetLength(1); y++) {
+            for (int x = 0; x < grid.GetLength(0); x++) {
+                grid[x, y].Reset();
+            }
+        }
+
+        source.gCost = 0;
+        source.hCost = heuristic(source.gridPos, target.gridPos);
+
+        // Initialize Open List (priority queue)
+        PriorityQueue<Node, int> open_lst = new PriorityQueue<Node, int>();
+        
+        // ADD START_NODE TO DICTIONARY
+        open_lst.Enqueue(source, source.fCost);
+        // Initialize Close List
+        Dictionary<Vector2Int, bool> closed_lst = new Dictionary<Vector2Int, bool>();
+        
+        // Repeat until nothing left in open list
+        while (open_lst.Count > 0)
+        {
+            // look for the lowest F cost node
+            Node current = open_lst.Dequeue();
+
+            // Skip if already in closed set
+            if (closed_lst.ContainsKey(current.gridPos))
+            {
+                continue;
+            }
+            closed_lst[current.gridPos] = true;
+
+            // If current node's grid position == target node's grid position
+            if (current.gridPos.x == target.gridPos.x && current.gridPos.y == target.gridPos.y)
+            {
+                List<Vector2Int> path = new List<Vector2Int>();
+
+            
+                Node pathNode = current;
+
+                Node parent;
+
+
+                while (current != null)
+                {
+                  path.Add(current.gridPos);
+                  current = current.parent;  
+                }
+                // Return list of tuples
+                path.Reverse(); 
+                List<Vector2Int> moveset = new List<Vector2Int>();  
+
+                for (int i = 1; i < path.Count; i++)
+                {
+                    int x = path[i].x - path[i-1].x;
+                    int y = path[i].y - path[i-1].y;
+                    moveset.Add(new Vector2Int(x,y));
+                }
+
+                return moveset;
+            }
+            
+
+            foreach (Vector2Int neighborPos in get_neighbors(this.grid, current))
+            {
+                if (closed_lst.ContainsKey(neighborPos))
+                {
+                    continue;
+                }
+                
+                Node neighbor = grid[neighborPos.x, neighborPos.y];
+                int newGCost = current.gCost + 1;
+                
+
+                
+                Node parent;
+
+                // Check if there is a line that connects this node 
+                if (current.parent != null && LineOfSight(current.parent, neighbor))
+                {
+                    parent = current.parent;
+                }
+                // Otherwise continue normally.
+                else
+                {
+                    parent = current;
+                }
+                
+                int furtherst_parent  = parent.gCost + heuristic(parent.gridPos, neighbor.gridPos);
+
+                if (furtherst_parent < neighbor.gCost)
+                {
+                    // Update node
+                    neighbor.parent = current;
+                    neighbor.gCost = furtherst_parent;
+                    
+                    // Only calculate heuristic if not already done
+                    if (neighbor.hCost == 0)
+                    {
+                        neighbor.hCost = heuristic(neighborPos, target.gridPos);
+                    }
+                    
+                    // Add to open list to be processed
+                    open_lst.Enqueue(neighbor, neighbor.fCost);
+                }
+            }
+        }
+        
+        // No path found
+        Debug.LogWarning("No path found from source to target");
+        return null;
+    }
+
+
+
+}
