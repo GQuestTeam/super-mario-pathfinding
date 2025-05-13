@@ -1496,7 +1496,18 @@ public class LazyThetaStar
             }
 
             result.Add(_parent[s.x, s.y]);
-            return result;
+
+            List<Vector2Int> moveset = new List<Vector2Int>();  
+
+            for (int i = 1; i < result.Count; i++)
+            {
+                int x = result[i].x - result[i-1].x;
+                int y = result[i].y - result[i-1].y;
+                
+                moveset.Add(new Vector2Int(x,y));
+            }
+
+            return moveset;
         }
     }
 }
