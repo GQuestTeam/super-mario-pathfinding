@@ -938,28 +938,24 @@ public class LazyThetaStar
     int x2 = b.gridPos.x;
     int y2 = b.gridPos.y;
 
+    int stepx;
+    int stepy;
     if (x2 > x1){
-        x1 = 1;
+        stepx = 1;
     }
     else if(x2 < x1)
     {
-        x1 = -1;
+        stepx = -1;
     }
-    else
-    {
-        x1 = 0;
-    }
+    
     if (y2 > y1){
-        y1 = 1;
+        stepy = 1;
     }
     else if(y2 < y1)
     {
-        y1 = -1;
+        stepy = -1;
     }
-    else
-    {
-        y1 = 0;
-    }
+    
 
     while (x1 != x2 && y1 != y2)
     {
