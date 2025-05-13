@@ -4,6 +4,8 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using Clrain.Collections;
+using Utils;
+
 using System.Timers;
 
 
@@ -684,27 +686,22 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             }
         }
         // For every
-        Debug.Log(blockJump);
     
         movement.HorizontalMovement();
         
         if (blockJump != 0 && pathNodes[0].y > pathNodes[1].y){
             bool grounded = rb.Raycast(Vector2.down);
-            Debug.Log("true");
             if (blockJump < 2 && grounded) 
             {   
-                Debug.Log("jumping short");
                 StartCoroutine(movement.GroundedMovement(40f));
             }   
             else if (blockJump < 4 && grounded)
             {   
-                Debug.Log("Jumping medium");
                 StartCoroutine(movement.GroundedMovement(60f));
             }
 
             else if (blockJump < 6 && grounded)
             {
-                Debug.Log("Jumping long");
                 StartCoroutine(movement.GroundedMovement(150f));
             }
         
@@ -794,7 +791,6 @@ public class AStar
             
             // If fall is too deep (>10 blocks) or we didn't find ground at all
             if (fallDepth >= 3 || !foundGround) {
-                Debug.Log($"Deep fall detected ({fallDepth}+ blocks) at ({nodeX}, {nodeY})");
                 
                 
                 // Also add diagonal jump options
@@ -802,7 +798,6 @@ public class AStar
                     (grid[nodeX + 1, nodeY - 2].status == 0 || grid[nodeX + 1, nodeY - 2].status == -3)) {
                     
                     neighbors.Add(new Vector2Int(nodeX + 1, nodeY - 2)); // Jump diagonally up 2 blocks
-                    Debug.Log($"Deep fall avoidance: Adding 2-block diagonal jump to ({nodeX + 1}, {nodeY - 2})");
                 }
                 
                 if (neighbors.Count > 0) {
@@ -815,7 +810,6 @@ public class AStar
                 if (nodeY + 1 < grid.GetLength(1) &&
                     (grid[nodeX, nodeY + 1].status == 0 || grid[nodeX, nodeY + 1].status == -3)) {
                     neighbors.Add(new Vector2Int(nodeX, nodeY + 1));
-                    Debug.Log($"At edge: Adding only downward movement to ({nodeX}, {nodeY + 1})");
                     return neighbors;
                 }
             }
@@ -832,7 +826,6 @@ public class AStar
                     (grid[nodeX + 1, nodeY - 1].status == 0 || grid[nodeX + 1, nodeY - 1].status == -3)) {
                     
                     neighbors.Add(new Vector2Int(nodeX + 1, nodeY - 1)); // Jump diagonally
-                    Debug.Log($"Obstacle avoidance: Adding jump path to ({nodeX + 1}, {nodeY - 1})");
                     return neighbors;
                 }
             }
@@ -1221,7 +1214,6 @@ public class LazyThetaStar
             if (current.gridPos.x == target.gridPos.x && current.gridPos.y == target.gridPos.y)
             {
                 List<Vector2Int> path = new List<Vector2Int>();
-
             
                 Node pathNode = current;
 
@@ -1231,8 +1223,10 @@ public class LazyThetaStar
                 while (current != null)
                 {
                   path.Add(current.gridPos);
-                  current = current.parent;  
+                  current = current.parent;
                 }
+
+            
                 // Return list of tuples
                 path.Reverse(); 
                 List<Vector2Int> moveset = new List<Vector2Int>();  
@@ -1298,4 +1292,212 @@ public class LazyThetaStar
         return null;
     }
 
+
+
+    /// <summary>
+    /// Theta* path finder implementation
+    /// algorithm https://en.wikipedia.org/wiki/Theta*
+    /// use custom <see cref="PriorityQueue"/>
+    ///
+    /// line of sight algorithm is taken from here https://news.movel.ai/theta-star"
+    /// </summary>
+    public class ThetaStar : IPathFinder
+    {
+        private static readonly Vector2Int UNKNOWN = new(-1, -1);
+        private readonly HashSet<Vector2Int> _closedQueue;
+        private readonly float[,] _gScore; // [x,y]
+        private readonly int _height;
+
+
+        private readonly bool[,] _map;
+
+        private readonly PriorityQueue _openQueue;
+        private readonly Vector2Int[,] _parent; // [x,y]
+        private readonly int _width;
+        private Vector2Int _end;
+
+        public ThetaStar(bool[,] map)
+        {
+            _map = map;
+            _width = map.GetLength(0);
+            _height = map.GetLength(1);
+            _gScore = new float[_width, _height];
+            _parent = new Vector2Int [_width, _height];
+            _openQueue = new PriorityQueue();
+            _closedQueue = new HashSet<Vector2Int>();
+        }
+
+        /// <summary>
+        ///     Theta star pathfinding implementation,
+        ///     <see>
+        ///         <cref>https://en.wikipedia.org/wiki/Theta*</cref>
+        ///     </see>
+        /// </summary>
+        public List<Vector2Int> CalculatePath(Vector2Int start, Vector2Int end)
+        {
+            _end = end;
+            ResetCache();
+
+            _gScore[start.x, start.y] = 0;
+            _parent[start.x, start.y] = start;
+
+            _openQueue.Enqueue(start, _gScore[start.x, start.y] + (start - end).magnitude);
+
+            while (_openQueue.Count > 0)
+            {
+                var s = _openQueue.Dequeue();
+                if (s == end) return ReconstructPath(s);
+
+                _closedQueue.Add(s);
+                foreach (var neighbour in GetNeighbours(s))
+                {
+                    if (neighbour.x < 0 || neighbour.y < 0 || neighbour.x >= _width || neighbour.y >= _height ||
+                        !_map[neighbour.x, neighbour.y] ||
+                        _closedQueue.Contains(neighbour)) continue;
+
+                    if (!_openQueue.Contains(neighbour))
+                    {
+                        _gScore[neighbour.x, neighbour.y] = float.PositiveInfinity;
+                        _parent[neighbour.x, neighbour.y] = UNKNOWN;
+                    }
+
+                    UpdateVertex(s, neighbour);
+                }
+            }
+
+            return null;
+        }
+
+        private void ResetCache()
+        {
+            Array.Clear(_gScore, 0, _gScore.Length);
+            Array.Clear(_parent, 0, _parent.Length);
+            _openQueue.Clear();
+            _closedQueue.Clear();
+        }
+
+        private void UpdateVertex(Vector2Int s, Vector2Int neighbour)
+        {
+            if (HasLineOfSight(_parent[s.x, s.y], neighbour))
+            {
+                var parentPosition = _parent[s.x, s.y];
+                var parentScore = _gScore[parentPosition.x, parentPosition.y] +
+                                  (parentPosition - neighbour).magnitude;
+                if (!(parentScore < _gScore[neighbour.x, neighbour.y])) return;
+                _gScore[neighbour.x, neighbour.y] = parentScore;
+                _parent[neighbour.x, neighbour.y] = parentPosition;
+
+                if (_openQueue.Contains(neighbour)) _openQueue.Remove(neighbour);
+
+                _openQueue.Enqueue(neighbour,
+                    _gScore[neighbour.x, neighbour.y] + (neighbour - _end).magnitude);
+            }
+            else
+            {
+                var score = _gScore[s.x, s.y] + (s - neighbour).magnitude;
+                if (!(score < _gScore[neighbour.x, neighbour.y])) return;
+                _gScore[neighbour.x, neighbour.y] = score;
+                _parent[neighbour.x, neighbour.y] = s;
+                if (_openQueue.Contains(neighbour)) _openQueue.Remove(neighbour);
+                _openQueue.Enqueue(neighbour,
+                    _gScore[neighbour.x, neighbour.y] + (neighbour - _end).magnitude);
+            }
+        }
+
+        // If has Line of Sight - return distance, otherwise -1
+        // copy-pasta from last section of https://news.movel.ai/theta-star
+        private bool HasLineOfSight(Vector2Int s, Vector2Int s2)
+        {
+            var x0 = s.x;
+            var y0 = s.y;
+            var x1 = s2.x;
+            var y1 = s2.y;
+
+            var dy = y1 - y0;
+            var dx = x1 - x0;
+
+            var f = 0;
+
+            if (dy < 0)
+            {
+                dy = -dy;
+                s.y = -1;
+            }
+            else
+            {
+                s.y = 1;
+            }
+
+            if (dx < 0)
+            {
+                dx = -dx;
+                s.x = -1;
+            }
+            else
+            {
+                s.x = 1;
+            }
+
+
+            if (dx >= dy)
+                while (x0 != x1)
+                {
+                    f += dy;
+                    if (f >= dx)
+                    {
+                        if (!_map[x0 + (s.x - 1) / 2, y0 + (s.y - 1) / 2]) return false;
+                        y0 += s.y;
+                        f -= dx;
+                    }
+
+                    if (f != 0 && !_map[x0 + (s.x - 1) / 2, y0 + (s.y - 1) / 2]) return false;
+
+
+                    if (dy == 0 && !_map[x0 + (s.x - 1) / 2, y0] && !_map[x0 + (s.x - 1) / 2, y0 - 1]) return false;
+                    x0 += s.x;
+                }
+            else
+                while (y0 != y1)
+                {
+                    f += dx;
+                    if (f >= dy)
+                    {
+                        if (!_map[x0 + (s.x - 1) / 2, y0 + (s.y - 1) / 2]) return false;
+                        x0 += s.x;
+                        f -= dy;
+                    }
+
+                    if (f != 0 && !_map[x0 + (s.x - 1) / 2, y0 + (s.y - 1) / 2]) return false;
+                    if (dx == 0 && !_map[x0, y0 + (s.y - 1) / 2] && !_map[x0 - 1, y0 + (s.y - 1) / 2]) return false;
+                    y0 += s.y;
+                }
+
+            return true;
+        }
+
+        private static Vector2Int[] GetNeighbours(Vector2Int src)
+        {
+            return new[]
+            {
+                src + Vector2Int.left,
+                src + Vector2Int.right,
+                src + Vector2Int.down,
+                src + Vector2Int.up
+            };
+        }
+
+        private List<Vector2Int> ReconstructPath(Vector2Int s)
+        {
+            var result = new List<Vector2Int>();
+            while (_parent[s.x, s.y] != s)
+            {
+                result.Add(s);
+                s = _parent[s.x, s.y];
+            }
+
+            result.Add(_parent[s.x, s.y]);
+            return result;
+        }
+    }
 }
+
