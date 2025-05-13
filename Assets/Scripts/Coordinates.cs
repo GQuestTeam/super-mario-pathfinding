@@ -65,7 +65,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             playerBounds.Clear();
             obstacleBounds.Clear();
             TrackCoordinates();
-            makeArray();
+            makeArrayTheta();
             /*
             if  (keypress = a)
                 A* = true
@@ -89,6 +89,186 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         }
     }
 
+
+
+    void makeArrayTheta()
+    {    
+        TrackCameraPosition();
+        // Set grid width and Height
+        int gridWidth = Mathf.CeilToInt(viewPortWidth);
+        int gridHeight = Mathf.CeilToInt(viewPortHeight);
+
+
+        
+        // Create grid (it's just a matrix)
+        grid = new Node[gridWidth, gridHeight];
+        
+        float originX = viewPort.x; // left X
+        float originY = viewPort.z; // bottom Y
+        
+        for (int x = 0; x < gridWidth; x++) 
+        {
+            for (int y = 0; y < gridHeight; y++) 
+            {
+                Vector2Int gridPos = new Vector2Int(x, y);
+                grid[x, y] = new Node(gridPos, 0); // Default to walkable, player is false
+            }
+        }   
+
+        // Set player position on grid
+        int playerX = Mathf.RoundToInt(player.position.x - originX);
+        int playerY = Mathf.RoundToInt(player.position.y - originY);
+
+        playerX = Mathf.Clamp(playerX, 0, gridWidth - 1);
+        playerY = Mathf.Clamp(playerY, 0, gridHeight - 1);
+        
+        if (playerX >= 0 && playerX < gridWidth && playerY >= 0 && playerY < gridHeight) {
+            int gridY = gridHeight - 1 - playerY;
+            grid[playerX, gridY].status = -2;
+        }
+    
+        // Set target position on grid
+        
+
+
+        // Make obstacles not walkable
+        foreach (Rect item in obstacleBounds)
+        {   
+            // Get the object dimensions in cells            
+            float widthInCells = item.width;
+            float heightInCells = item.height;
+            
+            // I DONT KNOW WHY PIPES ARE .50 WIDTH AND HEIGHT
+            bool isPipe = (item.width == .5);
+            
+            if (isPipe) {
+                // Handle pipe case (should be 2xany number tall)
+                int pipeX = Mathf.RoundToInt(item.x - originX);
+                int pipeTopY = Mathf.RoundToInt(item.y - originY);
+                
+                // Make pipe 2 cells wide by ground cell tall
+                for (int x = pipeX; x < pipeX + 2; x++) {
+                    for (int y = 0; y <= pipeTopY; y++) {
+                        if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
+                            int gridY = gridHeight - 1 - y;
+                            grid[x, gridY].status = -1;
+                        }
+                    }
+                }
+            }
+
+            // ONLY handle standard 1x1 blocks
+            else if (widthInCells <= 1.1f && heightInCells <= 1.1f) {
+                // For every 1x1 object, mark only that cell
+                int centerX = Mathf.RoundToInt(item.x - originX);
+                int centerY = Mathf.RoundToInt(item.y - originY);
+                if (centerX >= 0 && centerX < gridWidth && centerY >= 0 && centerY < gridHeight) {
+                    int gridY = gridHeight - 1 - centerY;
+                    grid[centerX, gridY].status = -1;
+                }
+            }
+            // Else, larger objects, use original calculation.
+            else {
+                int minX = Math.Max(0, Mathf.CeilToInt(item.xMin - originX));
+                int maxX = Math.Min(gridWidth - 1, Mathf.FloorToInt(item.xMax - originX));
+                int minY = Math.Max(0, Mathf.CeilToInt(item.yMin - originY));
+                int maxY = Math.Min(gridHeight - 1, Mathf.FloorToInt(item.yMax - originY));
+                
+                // Fill the grid cells 
+                for (int x = minX; x <= maxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        int gridY = gridHeight - 1 - y;
+                        grid[x, gridY].status = -1; 
+                    }
+                }
+            }
+        }
+
+        int targetX = playerX+10; // right X
+        int targetY = gridHeight - 3; 
+        if (targetX >= 0 && targetX < gridWidth && targetY >= 0 && targetY < gridHeight) {
+            grid[targetX, targetY].status = -3;
+        }
+        
+        
+        LazyThetaStar ltheta = new LazyThetaStar(grid);
+        pathMovements = ltheta.main();
+
+        // Mark path nodes in grid with -4 status
+        // Find source node
+        Vector2Int currentPos = Vector2Int.zero;
+        bool foundSource = false;
+
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {
+                if (grid[x, y].status == -2) // Player position
+                {
+                    currentPos = new Vector2Int(x, y);
+                    foundSource = true;
+                    break;
+                }
+            }
+            if (foundSource) break;
+        }
+        
+
+        // Clear previous path nodes
+        pathNodes.Clear();
+        pathNodes.Add(currentPos);
+
+        for (int i = 1; i < pathMovements.Count; i++)
+        {
+            currentPos.x += pathMovements[i].x;
+            currentPos.y += pathMovements[i].y;
+            pathNodes.Add(new Vector2Int(currentPos.x, currentPos.y));
+            
+            // Only mark as path if it's not already the player or target
+            if (grid[currentPos.x, currentPos.y].status != -2 && 
+                grid[currentPos.x, currentPos.y].status != -3 &&
+                grid[currentPos.x, currentPos.y].status != -1)
+            {
+                grid[currentPos.x, currentPos.y].status = -4;
+            }
+        }
+        
+
+        // https://www.reddit.com/r/Unity3D/comments/dc3ttd/how_to_print_a_2d_array_to_the_unity_console_as_a/
+        StringBuilder sb = new StringBuilder();
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {   
+                char cellChar = '□'; 
+                if (grid[x, y].status == -1)
+                {
+                    cellChar = '■';
+                }
+                else if (grid[x,y].status == -2)
+                {
+                    cellChar = '▣';
+                }
+                else if (grid[x,y].status == -3)
+                {
+                    cellChar = '!';
+                }
+                else if (grid[x,y].status == -4)
+                {
+                    cellChar = '*';
+                }
+                sb.Append(cellChar);
+                sb.Append(' ');
+            }
+            sb.AppendLine();
+        }
+        Debug.Log(sb.ToString());
+        VisualizePath();
+        MarioJump();
+        
+        
+        
+    }
 
 
     void makeArray()
@@ -269,6 +449,11 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         
         
     }
+
+
+
+
+
     void VisualizePath()
     {
         // Clear old container
@@ -938,8 +1123,8 @@ public class LazyThetaStar
     int x2 = b.gridPos.x;
     int y2 = b.gridPos.y;
 
-    int stepx;
-    int stepy;
+    int stepx = 0;
+    int stepy = 0;
     if (x2 > x1){
         stepx = 1;
     }
@@ -961,7 +1146,7 @@ public class LazyThetaStar
     {
         if (x1 != x2)
         {
-            x1 = x1 + stepx;
+            x1 = x1 + stepx; //
         }
         if (y1 != y2)
         {
@@ -976,5 +1161,141 @@ public class LazyThetaStar
     // If we got here. There is a clear path. 
     return true;
    }
+   public List<Vector2Int> main() 
+    {      
+        Node source = null; // To initialize
+        Node target = null;
+        for (int y = 0; y < grid.GetLength(1); y++)
+        {
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {   
+                if (grid[x, y].status == -2)
+                {
+                    source = grid[x,y];
+                }
+                else if (grid[x, y].status == -3)
+                {
+                    target = grid[x,y];
+                }
+            }
+        }
+
+        if (source == null || target == null)
+        {
+            Debug.LogError("Source or target not found in grid");
+            return null;
+        }
+
+        // Reset nodes for pathfinding
+        for (int y = 0; y < grid.GetLength(1); y++) {
+            for (int x = 0; x < grid.GetLength(0); x++) {
+                grid[x, y].Reset();
+            }
+        }
+
+        source.gCost = 0;
+        source.hCost = heuristic(source.gridPos, target.gridPos);
+
+        // Initialize Open List (priority queue)
+        PriorityQueue<Node, int> open_lst = new PriorityQueue<Node, int>();
+        
+        // ADD START_NODE TO DICTIONARY
+        open_lst.Enqueue(source, source.fCost);
+        // Initialize Close List
+        Dictionary<Vector2Int, bool> closed_lst = new Dictionary<Vector2Int, bool>();
+        
+        // Repeat until nothing left in open list
+        while (open_lst.Count > 0)
+        {
+            // look for the lowest F cost node
+            Node current = open_lst.Dequeue();
+
+            // Skip if already in closed set
+            if (closed_lst.ContainsKey(current.gridPos))
+            {
+                continue;
+            }
+            closed_lst[current.gridPos] = true;
+
+            // If current node's grid position == target node's grid position
+            if (current.gridPos.x == target.gridPos.x && current.gridPos.y == target.gridPos.y)
+            {
+                List<Vector2Int> path = new List<Vector2Int>();
+
+            
+                Node pathNode = current;
+
+                Node parent;
+
+
+                while (current != null)
+                {
+                  path.Add(current.gridPos);
+                  current = current.parent;  
+                }
+                // Return list of tuples
+                path.Reverse(); 
+                List<Vector2Int> moveset = new List<Vector2Int>();  
+
+                for (int i = 1; i < path.Count; i++)
+                {
+                    int x = path[i].x - path[i-1].x;
+                    int y = path[i].y - path[i-1].y;
+                    moveset.Add(new Vector2Int(x,y));
+                }
+
+                return moveset;
+            }
+            
+
+            foreach (Vector2Int neighborPos in get_neighbors(this.grid, current))
+            {
+                if (closed_lst.ContainsKey(neighborPos))
+                {
+                    continue;
+                }
+                
+                Node neighbor = grid[neighborPos.x, neighborPos.y];
+                int newGCost = current.gCost + 1;
+                
+
+                
+                Node parent;
+
+                // Check if there is a line that connects this node 
+                if (current.parent != null && in_sight(current.parent, neighbor))
+                {
+                    parent = current.parent;
+                }
+                // Otherwise continue normally.
+                else
+                {
+                    parent = current;
+                }
+                
+                int furtherst_parent  = parent.gCost + heuristic(parent.gridPos, neighbor.gridPos);
+
+                if (furtherst_parent < neighbor.gCost)
+                {
+                    // Update node
+                    neighbor.parent = current;
+                    neighbor.gCost = furtherst_parent;
+                    
+                    // Only calculate heuristic if not already done
+                    if (neighbor.hCost == 0)
+                    {
+                        neighbor.hCost = heuristic(neighborPos, target.gridPos);
+                    }
+                    
+                    // Add to open list to be processed
+                    open_lst.Enqueue(neighbor, neighbor.fCost);
+                }
+            }
+        }
+        
+        // No path found
+        Debug.LogWarning("No path found from source to target");
+        return null;
+    }
 
 }
