@@ -509,18 +509,18 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             if (blockJump < 2 && grounded) 
             {   
                 Debug.Log("jumping short");
-                StartCoroutine(movement.GroundedMovement(1f));
+                StartCoroutine(movement.GroundedMovement(40f));
             }   
             else if (blockJump < 4 && grounded)
             {   
                 Debug.Log("Jumping medium");
-                StartCoroutine(movement.GroundedMovement(30f));
+                StartCoroutine(movement.GroundedMovement(60f));
             }
 
             else if (blockJump < 6 && grounded)
             {
                 Debug.Log("Jumping long");
-                StartCoroutine(movement.GroundedMovement(50f));
+                StartCoroutine(movement.GroundedMovement(150f));
             }
         
         }
@@ -569,34 +569,120 @@ public class AStar
     private List<Vector2Int> get_neighbors(Node[,] grid, Node node)
     {   
         List<Vector2Int> neighbors = new List<Vector2Int>();
+        
+        int nodeX = node.gridPos.x;
+        int nodeY = node.gridPos.y;
+        
+        // Check if we're standing on ground
+        bool isOnGround = false;
+        if (nodeY + 1 < grid.GetLength(1)) {
+            isOnGround = grid[nodeX, nodeY + 1].status == -1; // Status -1 is ground/obstacle
+        }
+        
+        // Check if we're at an edge (no ground to the right)
+        bool isAtEdge = false;
+        if (isOnGround && nodeX + 1 < grid.GetLength(0) && nodeY + 1 < grid.GetLength(1)) {
+            isAtEdge = grid[nodeX + 1, nodeY + 1].status != -1; // No ground to the right
+        }
+        
+        // If at an edge, check how deep the fall is
+        if (isAtEdge) {
+            // Count how many blocks down until we hit ground
+            int fallDepth = 0;
+            bool foundGround = false;
+            
+            for (int checkY = nodeY + 1; checkY < grid.GetLength(1); checkY++) {
+                fallDepth++;
+                
+                if (nodeX + 1 < grid.GetLength(0) && checkY < grid.GetLength(1)) {
+                    if (grid[nodeX + 1, checkY].status == -1) {
+                        // Found ground
+                        foundGround = true;
+                        break;
+                    }
+                }
+                
+                // If we've checked 10 blocks down and still no ground, stop checking
+                if (fallDepth >= 3) {
+                    break;
+                }
+            }
+            
+            // If fall is too deep (>10 blocks) or we didn't find ground at all
+            if (fallDepth >= 3 || !foundGround) {
+                Debug.Log($"Deep fall detected ({fallDepth}+ blocks) at ({nodeX}, {nodeY})");
+                
+                
+                // Also add diagonal jump options
+                if (nodeY - 2 >= 0 && nodeX + 1 < grid.GetLength(0) && 
+                    (grid[nodeX + 1, nodeY - 2].status == 0 || grid[nodeX + 1, nodeY - 2].status == -3)) {
+                    
+                    neighbors.Add(new Vector2Int(nodeX + 1, nodeY - 2)); // Jump diagonally up 2 blocks
+                    Debug.Log($"Deep fall avoidance: Adding 2-block diagonal jump to ({nodeX + 1}, {nodeY - 2})");
+                }
+                
+                if (neighbors.Count > 0) {
+                    return neighbors; // Return only jump options
+                }
+            }
+            // For regular edges (not deep falls), go straight down
+            else if (isAtEdge) {
+                // Add downward direction only
+                if (nodeY + 1 < grid.GetLength(1) &&
+                    (grid[nodeX, nodeY + 1].status == 0 || grid[nodeX, nodeY + 1].status == -3)) {
+                    neighbors.Add(new Vector2Int(nodeX, nodeY + 1));
+                    Debug.Log($"At edge: Adding only downward movement to ({nodeX}, {nodeY + 1})");
+                    return neighbors;
+                }
+            }
+        }
+        
+        // Check for obstacles ahead
+        bool obstacleAhead = false;
+        if (nodeX + 1 < grid.GetLength(0)) {
+            obstacleAhead = grid[nodeX + 1, nodeY].status == -1;
+            
+            if (obstacleAhead && isOnGround) {
+                // Try to jump over the obstacle
+                if (nodeY - 1 >= 0 && nodeX + 1 < grid.GetLength(0) &&
+                    (grid[nodeX + 1, nodeY - 1].status == 0 || grid[nodeX + 1, nodeY - 1].status == -3)) {
+                    
+                    neighbors.Add(new Vector2Int(nodeX + 1, nodeY - 1)); // Jump diagonally
+                    Debug.Log($"Obstacle avoidance: Adding jump path to ({nodeX + 1}, {nodeY - 1})");
+                    return neighbors;
+                }
+            }
+        }
+        
+        // If no special cases apply, add all standard directions
         Vector2Int[] directions = new Vector2Int[] {
-            new Vector2Int(0, 1),   // Up
+            new Vector2Int(0, 1),   // Down
             new Vector2Int(1, 0),   // Right
-            new Vector2Int(0, -1),  // Down
+            new Vector2Int(0, -1),  // Up
             new Vector2Int(-1, 0)   // Left
         };
         
         foreach (Vector2Int direction in directions)
-        {   
-            int newX = node.gridPos.x + direction.x;
-            int newY = node.gridPos.y + direction.y;
+        {
+            int newX = nodeX + direction.x;
+            int newY = nodeY + direction.y;
 
             if (newX >= 0 && newX < grid.GetLength(0) && 
                 newY >= 0 && newY < grid.GetLength(1))
             {
-                // Allow nodes that are either walkable (0) OR the target (-3)
                 if (grid[newX, newY].status == 0 || grid[newX, newY].status == -3)
                 {
                     neighbors.Add(new Vector2Int(newX, newY));
                 }
             }
         }
-
-        neighbors.AddRange(GetJumpTargets(node));
+        
         return neighbors;
     }
+    
+    // If no speci
 
-   
+   /*
     private List<Vector2Int> GetJumpTargets(Node node)
     { 
         // This list will keep track of possible nodes in which we can land.  
@@ -634,6 +720,7 @@ public class AStar
 
 
     }
+    */
 
 
 
