@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using Clrain.Collections;
 using Utils;
 
+
+
 using System.Timers;
 
 
@@ -1301,7 +1303,7 @@ public class LazyThetaStar
     ///
     /// line of sight algorithm is taken from here https://news.movel.ai/theta-star"
     /// </summary>
-    public class ThetaStar : IPathFinder
+    public class ThetaStar 
     {
         private static readonly Vector2Int UNKNOWN = new(-1, -1);
         private readonly HashSet<Vector2Int> _closedQueue;
@@ -1324,6 +1326,7 @@ public class LazyThetaStar
             _gScore = new float[_width, _height];
             _parent = new Vector2Int [_width, _height];
             _openQueue = new PriorityQueue();
+            
             _closedQueue = new HashSet<Vector2Int>();
         }
 
