@@ -556,7 +556,6 @@ public class AStar
         this.grid = grid;
         this.rows = grid.GetLength(0);
         this.cols = grid.GetLength(1);
-
     }
     // Heuristic, manhattan distance
      private int heuristic(Vector2Int pos1, Vector2Int pos2)
@@ -886,7 +885,7 @@ public class LazyThetaStar
     private int rows;
     private int cols;
     // Constructor
-    public AStar(Node[,] grid)
+    public LazyThetaStar(Node[,] grid)
     {
         this.grid = grid;
         this.rows = grid.GetLength(0);
@@ -894,7 +893,7 @@ public class LazyThetaStar
 
     }
     // Heuristic, manhattan distance
-     private int heuristic(Vector2Int pos1, Vector2Int pos2)
+    private int heuristic(Vector2Int pos1, Vector2Int pos2)
     {
         int dx = Mathf.Abs(pos1.x - pos2.x);
         int dy = Mathf.Abs(pos1.y - pos2.y);
@@ -927,7 +926,6 @@ public class LazyThetaStar
             }
         }
 
-        neighbors.AddRange(GetJumpTargets(node));
         return neighbors;
     }
 
@@ -941,26 +939,26 @@ public class LazyThetaStar
     int y2 = b.gridPos.y;
 
     if (x2 > x1){
-        x1 = 1
+        x1 = 1;
     }
     else if(x2 < x1)
     {
-        x1 = -1
+        x1 = -1;
     }
     else
     {
-        x1 = 0
+        x1 = 0;
     }
     if (y2 > y1){
-        y1 = 1
+        y1 = 1;
     }
     else if(y2 < y1)
     {
-        y1 = -1
+        y1 = -1;
     }
     else
     {
-        y1 = 0
+        y1 = 0;
     }
 
     while (x1 != x2 && y1 != y2)
