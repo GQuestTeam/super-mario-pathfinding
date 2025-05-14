@@ -69,8 +69,8 @@ public class Coordinates: MonoBehaviour
             // Track new coordinates
             TrackCoordinates();
 
-            runAStar();
-            //runLazyTheta();
+            //runAStar();
+            runLazyTheta();
             frameCounter = 0;
         }
     }
