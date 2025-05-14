@@ -6,15 +6,11 @@ using System.Collections.Generic;
 using Clrain.Collections;
 using Utils;
 using System.Timers;
-using System.Linq;
 
 
 public class Coordinates: MonoBehaviour
-{     
-    // Timing
-    private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
-    private List<float> aStarTimings = new List<float>();
-    private List<float> lThetaTimings = new List<float>();
+{      
+
     // Player Coordinates
     public Transform player; 
     // List of Obstacle Coordinates
@@ -55,17 +51,6 @@ public class Coordinates: MonoBehaviour
             Debug.LogError("No main camera found!");
         }
         GetGroundBounds();
-
-        /*
-        for (int i = 0; i < 1000; i++){
-            CompareTiming();
-        }
-        float aStarAvg = aStarTimings.Average();
-        float lThetaAvg = lThetaTimings.Average();
-        
-        Debug.LogError($"A* average execution time: {aStarAvg} ms");
-        Debug.LogError($"Lazy Theta* average execution time: {lThetaAvg} ms");
-        */
     }
 
     /// Update() method
@@ -88,30 +73,6 @@ public class Coordinates: MonoBehaviour
             //runLazyTheta();
             frameCounter = 0;
         }
-    }
-
-    
-
-    // Benchmark algorithms
-    public void CompareTiming()
-    {
-        // Time A* execution
-        stopwatch.Reset();
-        stopwatch.Start();
-        runAStar();
-        stopwatch.Stop();
-        long aStarTime = stopwatch.ElapsedMilliseconds;
-        
-        // Time LazyTheta* execution
-        stopwatch.Reset();
-        stopwatch.Start();
-        runLazyTheta();
-        stopwatch.Stop();
-        long thetaTime = stopwatch.ElapsedMilliseconds;
-        
-        // Log results
-        aStarTimings.Add(aStarTime);
-        lThetaTimings.Add(thetaTime);
     }
 
 
@@ -733,6 +694,9 @@ public class Coordinates: MonoBehaviour
         // Apply gravity after jump
         movement.ApplyGravity();
     }
+
+    
+
 
 
 
@@ -1431,5 +1395,3 @@ public class LazyThetaStar
         return null;
     }
 }
-
-
