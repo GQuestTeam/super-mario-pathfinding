@@ -222,7 +222,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         pathNodes.Clear();
         pathNodes.Add(currentPos);
 
-        for (int i = 1; i < pathMovements.Count; i++)
+        for (int i = 0; i < pathMovements.Count; i++)
         {
             currentPos.x += pathMovements[i].x;
             currentPos.y += pathMovements[i].y;
@@ -230,7 +230,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             
             // Only mark as path if it's not already the player or target
             if (grid[currentPos.x, currentPos.y].status != -2 && 
-                grid[currentPos.x, currentPos.y].status != -3 &&
                 grid[currentPos.x, currentPos.y].status != -1)
             {
                 grid[currentPos.x, currentPos.y].status = -4;
@@ -915,7 +914,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         
         // Calculate the Y difference
         int heightDifference = nextPos.y - currentPos.y;
-        
+        Debug.Log(heightDifference);
         // Apply horizontal movement regardless
         movement.HorizontalMovement();
         
@@ -927,7 +926,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             
             // Absolute value of height difference to get positive number
             int blocksToJump = Mathf.Abs(heightDifference);
-            
+            Debug.Log(blocksToJump);
             if (blocksToJump <= 2)
             {
                 // Small jump for 1 block
@@ -936,7 +935,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             else if (blocksToJump <= 4)
             {
                 // Medium jump for 2 blocks
-                jumpForce = 60f;
+                jumpForce = 80f;
             }
             else if (blocksToJump <= 6)
             {
@@ -1378,7 +1377,6 @@ public class LazyThetaStar
         }
         if (grid[x1,y1].status == -1)
         {
-            Debug.Log(grid[x1,y1].status + "status"); 
             return false;
         }
     }
@@ -1502,7 +1500,7 @@ public class LazyThetaStar
                 if (current.parent != null && in_sight(current.parent, neighbor))
                 {
                     parent = current.parent;
-                    Debug.Log("IN SIGHT - parent + current.parent + current + neighbor" + parent.gridPos + " " + current.parent.gridPos + " " + current.gridPos + " " + neighbor.gridPos);
+                    //Debug.Log("IN SIGHT - parent + current.parent + current + neighbor" + parent.gridPos + " " + current.parent.gridPos + " " + current.gridPos + " " + neighbor.gridPos);
                 }
                 // Otherwise continue normally.
                 else
@@ -1762,10 +1760,11 @@ public class ThetaStar
         }
 
         result.Add(_parent[s.x, s.y]);
-
+        /*
         foreach (Vector2Int move in result){
             Debug.Log(move);
         }
+        */
 
         List<Vector2Int> moveset = new List<Vector2Int>();  
 
