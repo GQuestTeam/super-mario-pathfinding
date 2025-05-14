@@ -1146,19 +1146,8 @@ public class LazyThetaStar
         return neighbors;
     }
 
-
-    /// <summary>
-    /// This function continues the task from in_sight
-    /// Basically confirms if there is a interrupted path between two nodes.
-    /// Depending on the order our line changes.
-    /// </summary>
-    /// <param name="a"> Granparent node</param> 
-    /// <param name="b">current neighbor</param>
-    /// <returns> A boolean signaling a connection</returns>
     bool drawLine(Node a, Node b)
-    {   
-
-        // Get coordinates.
+    {
         List<Vector2Int> putPixel = new List<Vector2Int>();
 
         int x0 = a.gridPos.x;
@@ -1166,20 +1155,15 @@ public class LazyThetaStar
         int x1 = b.gridPos.x;
         int y1 = b.gridPos.y;
 
-        // Check horizontal direction of line
-        // In other words, cover the adjecent/opposite octant. 
         if (x0 > x1){
             x0 = x1; x1 = x0;
             y0 = y1; y1 = y0; 
         }
 
-        Calculate slopes/ rates of change. 
         int dx = x1 - x0;
         int dy = y1 - y0;
 
-
-        // Figure out if line is moving up or down.
-        int dir  = 0;
+        int dir = 0;
         if (dy < 0){
             dir = -1;
         }
@@ -1187,7 +1171,6 @@ public class LazyThetaStar
             dir = 1;
         }
 
-        // Use this to increase or decrease our Y in every iteration. 
         dy *= dir;
 
         int y = 0;
@@ -1220,24 +1203,15 @@ public class LazyThetaStar
 
 
 
-    /// <summary>
-    /// This method checks to see if two nodes have conection without obstacles interfering.
-    /// If yes, that means that a can see b, therefore we can draw a direc line from A to B.
-    /// </summary>
-    /// <param name="a"></param> Starting Node
-    /// <param name="b"></param> Current neighbor we are checking. 
-    /// <returns></returns> A boolean
+
    bool in_sight(Node a, Node b)
    {
 
-    // Getting positions / coodinates of each node. 
     int x0  = a.gridPos.x;
     int y0 = a.gridPos.y;
     int x1 = b.gridPos.x;
     int y1 = b.gridPos.y;
 
-    // Determine magnitudes to see if line is horizontal or vertical. 
-    // Depending on the result, we set out points accordingly. 
     if(Math.Abs(x1-x0) > Math.Abs(y1-y0))
     {
         return drawLine(a,b);
@@ -1255,10 +1229,7 @@ public class LazyThetaStar
 
 
 
-    /// <summary>
-    /// Literally same as A*
-    /// </summary>
-    /// <returns> A list of moves</returns>
+
    public List<Vector2Int> main() 
     {      
         Node source = null; // To initialize
@@ -1343,6 +1314,17 @@ public class LazyThetaStar
                 }
                 return moveset;
             }
+            
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1370,8 +1352,9 @@ public class LazyThetaStar
                 else
                 {
                     parent = current;
-                    
+                    //Debug.Log("Not in sight");
                 }
+                //Debug.Log("Print parent after in-sight" + parent.gridPos);
                 
                 // Set parent as previous parent or current (line of sight or not)
                 neighbor.parent = parent;
