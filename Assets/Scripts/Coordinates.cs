@@ -69,7 +69,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             playerBounds.Clear();
             obstacleBounds.Clear();
             TrackCoordinates();
-            makeArray();
+            makeArrayLazyTheta();
             /*
             if  (keypress = a)
                 A* = true
@@ -268,7 +268,7 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         }
         Debug.Log(sb.ToString());
         VisualizePath();
-        MarioJump();
+        MarioJumpTheta();
         
         
         
@@ -898,6 +898,64 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         movement.ApplyGravity();
     }
 
+    void MarioJumpTheta()
+    {
+        if (pathNodes == null || pathNodes.Count < 2) return;
+
+        // Find player
+        GameObject mario = GameObject.FindGameObjectWithTag("Player");
+        if (mario == null) return;
+
+        PlayerMovement movement = mario.GetComponent<PlayerMovement>();
+        Rigidbody2D rb = mario.GetComponent<Rigidbody2D>();
+        
+        // Calculate jump height, based on Y difference
+        Vector2Int currentPos = pathNodes[0];
+        Vector2Int nextPos = pathNodes[1];
+        
+        // Calculate the Y difference
+        int heightDifference = nextPos.y - currentPos.y;
+        
+        // Apply horizontal movement regardless
+        movement.HorizontalMovement();
+        
+        // Only jump if we need to go up (negative height difference)
+        if (heightDifference < 0 && rb.Raycast(Vector2.down)) // Make sure we're grounded
+        {
+            // Calculate jump force based on the height difference
+            float jumpForce;
+            
+            // Absolute value of height difference to get positive number
+            int blocksToJump = Mathf.Abs(heightDifference);
+            
+            if (blocksToJump <= 2)
+            {
+                // Small jump for 1 block
+                jumpForce = 40f;
+            }
+            else if (blocksToJump <= 4)
+            {
+                // Medium jump for 2 blocks
+                jumpForce = 60f;
+            }
+            else if (blocksToJump <= 6)
+            {
+                // Higher jump for 3-4 blocks
+                jumpForce = 100f;
+            }
+            else
+            {
+                // Maximum jump for 6+ blocks
+                jumpForce = 150f;
+            }
+            
+            // Execute the jump
+            StartCoroutine(movement.GroundedMovement(jumpForce));
+        }
+        
+        movement.ApplyGravity();
+    }
+
     
 
     // BUILD A MAP
@@ -1308,7 +1366,7 @@ public class LazyThetaStar
     }
     
 
-    while (x1 != x2 && y1 != y2)
+    while (x1 != x2 || y1 != y2)
     {
         if (x1 != x2)
         {
@@ -1369,7 +1427,7 @@ public class LazyThetaStar
         // ADD START_NODE TO DICTIONARY
         open_lst.Enqueue(source, source.fCost);
         // Initialize Close List
-        Dictionary<Vector2Int, bool> closed_lst = new Dictionary<Vector2Int, bool>();
+        Dictionary<Vector2Int, Node> closed_lst = new Dictionary<Vector2Int, Node>();
         
         // Repeat until nothing left in open list
         while (open_lst.Count > 0)
@@ -1382,17 +1440,13 @@ public class LazyThetaStar
             {
                 continue;
             }
-            closed_lst[current.gridPos] = true;
+            closed_lst[current.gridPos] = current;
 
             // If current node's grid position == target node's grid position
             if (current.gridPos.x == target.gridPos.x && current.gridPos.y == target.gridPos.y)
             {
                 List<Vector2Int> path = new List<Vector2Int>();
             
-                Node pathNode = current;
-
-                Node parent;
-
 
                 while (current != null)
                 {
@@ -1411,7 +1465,9 @@ public class LazyThetaStar
                     int y = path[i].y - path[i-1].y;
                     moveset.Add(new Vector2Int(x,y));
                 }
-
+                foreach (Vector2Int move in path){
+                    Debug.Log(move);
+                }
                 return moveset;
             }
             
@@ -1421,28 +1477,6 @@ public class LazyThetaStar
 
 
 
-            foreach (Vector2Int neighborPos in get_neighbors(this.grid, current))
-            {
-                if (closed_lst.ContainsKey(neighborPos))
-                {
-                    continue;
-                }
-                
-                Node neighbor = grid[neighborPos.x, neighborPos.y]; 
-                int newGCost = current.gCost + 1;
-
-                neighbor.parent = current;
-                neighbor.gCost = newGCost;
-                neighbor.hCost = heuristic(neighborPos, target.gridPos);
-
-
-                if (!closed_lst.ContainsKey(neighborPos) || closed_lst[neighbor.gridPos].fCost > neighbor.fCost)
-                {
-                    open_lst.Enqueue(neighbor, neighbor.fCost);
-                }
-            }
-
-
 
 
 
@@ -1457,47 +1491,37 @@ public class LazyThetaStar
                     continue;
                 }
                 
+
+                // Create neighbor node
                 Node neighbor = grid[neighborPos.x, neighborPos.y];
-                int newGCost = current.gCost + 1;
-                
-
-                
+                // Instantiate parent
                 Node parent;
+                
 
-                // Check if there is a line that connects this node 
-                Debug.Log(" Pre " + current.gridPos + " " + neighbor.gridPos);
-               
+                // If current has a parent or is in sight of last node
                 if (current.parent != null && in_sight(current.parent, neighbor))
                 {
                     parent = current.parent;
-                    Debug.Log("IN SIGHT");
+                    Debug.Log("IN SIGHT - parent + current.parent + current + neighbor" + parent.gridPos + " " + current.parent.gridPos + " " + current.gridPos + " " + neighbor.gridPos);
                 }
                 // Otherwise continue normally.
                 else
                 {
                     parent = current;
-                    Debug.Log("Not in sight");
+                    //Debug.Log("Not in sight");
                 }
-                Debug.Log("PRint parent" + parent.gridPos);
-
+                //Debug.Log("Print parent after in-sight" + parent.gridPos);
                 
-                int furtherst_parent  = parent.gCost + heuristic(parent.gridPos, neighbor.gridPos);
-
-                if (furtherst_parent < neighbor.gCost)
+                // Set parent as previous parent or current (line of sight or not)
+                neighbor.parent = parent;
+                // Apply gCost, hCost, fCost
+                int newGCost = parent.gCost + 1;
+                neighbor.gCost = newGCost;
+                neighbor.hCost = heuristic(neighborPos, target.gridPos);
+            
+                // If closed list contains key, 
+                if (!closed_lst.ContainsKey(neighborPos) || closed_lst[neighbor.gridPos].fCost > neighbor.fCost)
                 {
-                    // Update node
-                    neighbor.parent = current;
-                    Debug.Log("Compare Current and meighbor.parent, neighbor "+  current.gridPos + " " + neighbor.parent.gridPos + " " );
-                    neighbor.gCost = furtherst_parent;
-
-                    
-                    // Only calculate heuristic if not already done
-                    if (neighbor.hCost == 0)
-                    {
-                        neighbor.hCost = heuristic(neighborPos, target.gridPos);
-                    }
-                    
-                    // Add to open list to be processed
                     open_lst.Enqueue(neighbor, neighbor.fCost);
                 }
 
