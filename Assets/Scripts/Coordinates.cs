@@ -133,6 +133,21 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
     
         // Set target position on grid
         
+        // Handle Pits
+
+            // If y = 13 and y = 14 don't have obstacles, then y to y-4 make -1 
+
+        // constantly check all x positions + 3 of character and y = 13 and 14
+        /*
+        if (grid[playerX + 3, 1].status != -1)
+        {   
+            Debug.Log("PIT DETECTED");
+            for (int i = 0; i < 4; i++)
+            {
+                grid[playerX + 3, 11-i].status = -1;
+            }
+        }
+        */
 
 
         // Make obstacles not walkable
@@ -160,6 +175,8 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
                     }
                 }
             }
+            
+            
 
             // ONLY handle standard 1x1 blocks
             else if (widthInCells <= 1.1f && heightInCells <= 1.1f) {
@@ -273,184 +290,6 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         
     }
 
-    void makeArrayTheta()
-    {    
-        TrackCameraPosition();
-        // Set grid width and Height
-        int gridWidth = Mathf.CeilToInt(viewPortWidth);
-        int gridHeight = Mathf.CeilToInt(viewPortHeight);
-
-
-        
-        // Create grid (it's just a matrix)
-        grid = new Node[gridWidth, gridHeight];
-        
-        float originX = viewPort.x; // left X
-        float originY = viewPort.z; // bottom Y
-        
-        for (int x = 0; x < gridWidth; x++) 
-        {
-            for (int y = 0; y < gridHeight; y++) 
-            {
-                Vector2Int gridPos = new Vector2Int(x, y);
-                grid[x, y] = new Node(gridPos, 0); // Default to walkable, player is false
-            }
-        }   
-
-        // Set player position on grid
-        int playerX = Mathf.RoundToInt(player.position.x - originX);
-        int playerY = Mathf.RoundToInt(player.position.y - originY);
-
-        playerX = Mathf.Clamp(playerX, 0, gridWidth - 1);
-        playerY = Mathf.Clamp(playerY, 0, gridHeight - 1);
-        
-        if (playerX >= 0 && playerX < gridWidth && playerY >= 0 && playerY < gridHeight) {
-            int gridY = gridHeight - 1 - playerY;
-            grid[playerX, gridY].status = -2;
-        }
-    
-        // Set target position on grid
-        
-
-
-        // Make obstacles not walkable
-        foreach (Rect item in obstacleBounds)
-        {   
-            // Get the object dimensions in cells            
-            float widthInCells = item.width;
-            float heightInCells = item.height;
-            
-            // I DONT KNOW WHY PIPES ARE .50 WIDTH AND HEIGHT
-            bool isPipe = (item.width == .5);
-            
-            if (isPipe) {
-                // Handle pipe case (should be 2xany number tall)
-                int pipeX = Mathf.RoundToInt(item.x - originX);
-                int pipeTopY = Mathf.RoundToInt(item.y - originY);
-                
-                // Make pipe 2 cells wide by ground cell tall
-                for (int x = pipeX; x < pipeX + 2; x++) {
-                    for (int y = 0; y <= pipeTopY; y++) {
-                        if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
-                            int gridY = gridHeight - 1 - y;
-                            grid[x, gridY].status = -1;
-                        }
-                    }
-                }
-            }
-
-            // ONLY handle standard 1x1 blocks
-            else if (widthInCells <= 1.1f && heightInCells <= 1.1f) {
-                // For every 1x1 object, mark only that cell
-                int centerX = Mathf.RoundToInt(item.x - originX);
-                int centerY = Mathf.RoundToInt(item.y - originY);
-                if (centerX >= 0 && centerX < gridWidth && centerY >= 0 && centerY < gridHeight) {
-                    int gridY = gridHeight - 1 - centerY;
-                    grid[centerX, gridY].status = -1;
-                }
-            }
-            // Else, larger objects, use original calculation.
-            else {
-                int minX = Math.Max(0, Mathf.CeilToInt(item.xMin - originX));
-                int maxX = Math.Min(gridWidth - 1, Mathf.FloorToInt(item.xMax - originX));
-                int minY = Math.Max(0, Mathf.CeilToInt(item.yMin - originY));
-                int maxY = Math.Min(gridHeight - 1, Mathf.FloorToInt(item.yMax - originY));
-                
-                // Fill the grid cells 
-                for (int x = minX; x <= maxX; x++) {
-                    for (int y = minY; y <= maxY; y++) {
-                        int gridY = gridHeight - 1 - y;
-                        grid[x, gridY].status = -1; 
-                    }
-                }
-            }
-        }
-
-        int targetX = playerX+10; // right X
-        int targetY = gridHeight - 3; 
-        if (targetX >= 0 && targetX < gridWidth && targetY >= 0 && targetY < gridHeight) {
-            grid[targetX, targetY].status = -3;
-        }
-        
-        
-        ThetaStar theta = new ThetaStar(grid);
-        pathMovements = theta.CalculatePath();
-
-        // Mark path nodes in grid with -4 status
-        // Find source node
-        Vector2Int currentPos = Vector2Int.zero;
-        bool foundSource = false;
-
-        for (int y = 0; y < grid.GetLength(1); y++)
-        {
-            for (int x = 0; x < grid.GetLength(0); x++)
-            {
-                if (grid[x, y].status == -2) // Player position
-                {
-                    currentPos = new Vector2Int(x, y);
-                    foundSource = true;
-                    break;
-                }
-            }
-            if (foundSource) break;
-        }
-        
-
-        // Clear previous path nodes
-        pathNodes.Clear();
-        pathNodes.Add(currentPos);
-
-        for (int i = 1; i < pathMovements.Count; i++)
-        {
-            currentPos.x += pathMovements[i].x;
-            currentPos.y += pathMovements[i].y;
-            pathNodes.Add(new Vector2Int(currentPos.x, currentPos.y));
-            
-            // Only mark as path if it's not already the player or target
-            if (grid[currentPos.x, currentPos.y].status != -2 && 
-                grid[currentPos.x, currentPos.y].status != -3 &&
-                grid[currentPos.x, currentPos.y].status != -1)
-            {
-                grid[currentPos.x, currentPos.y].status = -4;
-            }
-        }
-        
-
-        // https://www.reddit.com/r/Unity3D/comments/dc3ttd/how_to_print_a_2d_array_to_the_unity_console_as_a/
-        StringBuilder sb = new StringBuilder();
-        for (int y = 0; y < grid.GetLength(1); y++)
-        {
-            for (int x = 0; x < grid.GetLength(0); x++)
-            {   
-                char cellChar = '□'; 
-                if (grid[x, y].status == -1)
-                {
-                    cellChar = '■';
-                }
-                else if (grid[x,y].status == -2)
-                {
-                    cellChar = '▣';
-                }
-                else if (grid[x,y].status == -3)
-                {
-                    cellChar = '!';
-                }
-                else if (grid[x,y].status == -4)
-                {
-                    cellChar = '*';
-                }
-                sb.Append(cellChar);
-                sb.Append(' ');
-            }
-            sb.AppendLine();
-        }
-        Debug.Log(sb.ToString());
-        VisualizePath();
-        MarioJump();
-        
-        
-        
-    }
 
     void makeArray()
     {    
@@ -870,18 +709,18 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         
         if (blockJump != 0 && pathNodes[0].y > pathNodes[1].y){
             bool grounded = rb.Raycast(Vector2.down);
-            if (blockJump < 2 && grounded) 
+            if (blockJump <= 2 && grounded) 
             {   
                 StartCoroutine(movement.GroundedMovement(40f));
             }   
-            else if (blockJump < 4 && grounded)
+            else if (blockJump <= 4 && grounded)
             {   
-                StartCoroutine(movement.GroundedMovement(60f));
+                StartCoroutine(movement.GroundedMovement(100f));
             }
 
-            else if (blockJump < 6 && grounded)
+            else if (blockJump <= 6 && grounded)
             {
-                StartCoroutine(movement.GroundedMovement(150f));
+                StartCoroutine(movement.GroundedMovement(120f));
             }
         
         }
@@ -912,8 +751,9 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
         Vector2Int currentPos = pathNodes[0];
         Vector2Int nextPos = pathNodes[1];
         
-        // Calculate the Y difference
+        // Calculate the differences
         int heightDifference = nextPos.y - currentPos.y;
+        int xDifference = nextPos.x - currentPos.x;
         Debug.Log(heightDifference);
         // Apply horizontal movement regardless
         movement.HorizontalMovement();
@@ -926,30 +766,35 @@ public class Coordinates: MonoBehaviour // Declares a new class, inherits "MonoB
             
             // Absolute value of height difference to get positive number
             int blocksToJump = Mathf.Abs(heightDifference);
+            xDifference = Mathf.Abs(xDifference);
             Debug.Log(blocksToJump);
-            if (blocksToJump <= 2)
+            if (xDifference < 5)
             {
-                // Small jump for 1 block
-                jumpForce = 40f;
-            }
-            else if (blocksToJump <= 4)
-            {
-                // Medium jump for 2 blocks
-                jumpForce = 80f;
-            }
-            else if (blocksToJump <= 6)
-            {
-                // Higher jump for 3-4 blocks
-                jumpForce = 100f;
-            }
-            else
-            {
-                // Maximum jump for 6+ blocks
-                jumpForce = 150f;
-            }
+
+           
+                if (blocksToJump <= 2)
+                {
+                    // Small jump for 1 block
+                    StartCoroutine(movement.GroundedMovement(60f));
+                }
+                else if (blocksToJump <= 4)
+                {
+                    Debug.Log("JUMPING FOUR BLOCKS");
+                    // Medium jump for 2 blocks
+                    StartCoroutine(movement.GroundedMovement(120f));
+                }
+                else if (blocksToJump <= 6)
+                {
+                    // Higher jump for 3-4 blocks
+                    StartCoroutine(movement.GroundedMovement(120f));
+                }
+                else
+                {
+                    // Maximum jump for 6+ blocks
+                    StartCoroutine(movement.GroundedMovement(120f));
+                }
+            } 
             
-            // Execute the jump
-            StartCoroutine(movement.GroundedMovement(jumpForce));
         }
         
         movement.ApplyGravity();
@@ -1030,7 +875,6 @@ public class AStar
             if (fallDepth >= 3 || !foundGround) {
                 
                 
-                // Also add diagonal jump options
                 if (nodeY - 2 >= 0 && nodeX + 1 < grid.GetLength(0) && 
                     (grid[nodeX + 1, nodeY - 2].status == 0 || grid[nodeX + 1, nodeY - 2].status == -3)) {
                     
@@ -1311,79 +1155,197 @@ public class LazyThetaStar
     private List<Vector2Int> get_neighbors(Node[,] grid, Node node)
     {   
         List<Vector2Int> neighbors = new List<Vector2Int>();
+        
+        int nodeX = node.gridPos.x;
+        int nodeY = node.gridPos.y;
+        
+        // Check if we're standing on ground
+        bool isOnGround = false;
+        if (nodeY + 1 < grid.GetLength(1)) {
+            isOnGround = grid[nodeX, nodeY + 1].status == -1; // Status -1 is ground/obstacle
+        }
+        
+        // Check if we're at an edge (no ground to the right)
+        bool isAtEdge = false;
+        if (isOnGround && nodeX + 1 < grid.GetLength(0) && nodeY + 1 < grid.GetLength(1)) {
+            isAtEdge = grid[nodeX + 1, nodeY + 1].status != -1; // No ground to the right
+        }
+        
+        // If at an edge, check how deep the fall is
+        if (isAtEdge) {
+            // Count how many blocks down until we hit ground
+            int fallDepth = 0;
+            bool foundGround = false;
+            
+            for (int checkY = nodeY + 1; checkY < grid.GetLength(1); checkY++) {
+                fallDepth++;
+                
+                if (nodeX + 1 < grid.GetLength(0) && checkY < grid.GetLength(1)) {
+                    if (grid[nodeX + 1, checkY].status == -1) {
+                        // Found ground
+                        foundGround = true;
+                        break;
+                    }
+                }
+                
+                // If we've checked 10 blocks down and still no ground, stop checking
+                if (fallDepth >= 10) {
+                    break;
+                }
+            }
+            
+            // If fall is too deep (>10 blocks) or we didn't find ground at all
+            if (fallDepth >= 10 || !foundGround) {
+                
+                
+                if (nodeY - 2 >= 0 && nodeX + 1 < grid.GetLength(0) && 
+                    (grid[nodeX + 1, nodeY - 2].status == 0 || grid[nodeX + 1, nodeY - 2].status == -3)) {
+
+                    grid[nodeX + 1, nodeY ].status = -1;
+                    grid[nodeX + 4, nodeY ].status = -1;
+                }
+                
+                if (neighbors.Count > 0) {
+                    return neighbors; // Return only jump options
+                }
+            }
+            // For regular edges (not deep falls), go straight down
+            else if (isAtEdge) {
+                // Add downward direction only
+                if (nodeY + 1 < grid.GetLength(1) &&
+                    (grid[nodeX, nodeY + 1].status == 0 || grid[nodeX, nodeY + 1].status == -3)) {
+                    neighbors.Add(new Vector2Int(nodeX, nodeY + 1));
+                    return neighbors;
+                }
+            }
+        }
+        
+        // Check for obstacles ahead
+        bool obstacleAhead = false;
+        if (nodeX + 1 < grid.GetLength(0)) {
+            obstacleAhead = grid[nodeX + 1, nodeY].status == -1;
+            
+            if (obstacleAhead && isOnGround) {
+                // Try to jump over the obstacle
+                if (nodeY - 1 >= 0 && nodeX + 1 < grid.GetLength(0) &&
+                    (grid[nodeX + 1, nodeY - 1].status == 0 || grid[nodeX + 1, nodeY - 1].status == -3)) {
+                    
+                    neighbors.Add(new Vector2Int(nodeX + 1, nodeY - 1)); // Jump diagonally
+                    return neighbors;
+                }
+            }
+        }
+        
+        // If no special cases apply, add all standard directions
         Vector2Int[] directions = new Vector2Int[] {
-            new Vector2Int(0, 1),   // Up
+            new Vector2Int(0, 1),   // Down
             new Vector2Int(1, 0),   // Right
-            new Vector2Int(0, -1),  // Down
+            new Vector2Int(0, -1),  // Up
             new Vector2Int(-1, 0)   // Left
         };
         
         foreach (Vector2Int direction in directions)
-        {   
-            int newX = node.gridPos.x + direction.x;
-            int newY = node.gridPos.y + direction.y;
+        {
+            int newX = nodeX + direction.x;
+            int newY = nodeY + direction.y;
 
             if (newX >= 0 && newX < grid.GetLength(0) && 
                 newY >= 0 && newY < grid.GetLength(1))
             {
-                // Allow nodes that are either walkable (0) OR the target (-3)
                 if (grid[newX, newY].status == 0 || grid[newX, newY].status == -3)
                 {
                     neighbors.Add(new Vector2Int(newX, newY));
                 }
             }
         }
-
+        
         return neighbors;
     }
 
+    bool drawLine(Node a, Node b)
+    {
+        List<Vector2Int> putPixel = new List<Vector2Int>();
+
+        int x0 = a.gridPos.x;
+        int y0 = a.gridPos.y;
+        int x1 = b.gridPos.x;
+        int y1 = b.gridPos.y;
+
+        if (x0 > x1){
+            x0 = x1; x1 = x0;
+            y0 = y1; y1 = y0; 
+        }
+
+        int dx = x1 - x0;
+        int dy = y1 - y0;
+
+        int dir = 0;
+        if (dy < 0){
+            dir = -1;
+        }
+        else {
+            dir = 1;
+        }
+
+        dy *= dir;
+
+        int y = 0;
+        int p = 0;
+        if (dx != 0)
+        {
+            y = y0;
+            p = 2*dy - dx;
+            for (int i = 0; i < dx+1; i++){
+                putPixel.Add(new Vector2Int(x0 + i, y));
+                if (p >= 0)
+                {
+                    y += dir;
+                    p = p-2*dx;
+                }
+                p = p+2*dy;
+            }
+            
+        }
+
+        foreach (Vector2Int pixel in putPixel){
+            if (grid[pixel.x, pixel.y].status == -1)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+
+
+
    bool in_sight(Node a, Node b)
    {
-    // Need to get coordinates
-    int x1 = a.gridPos.x;
-    int y1 = a.gridPos.y;
 
-    int x2 = b.gridPos.x;
-    int y2 = b.gridPos.y;
+    int x0  = a.gridPos.x;
+    int y0 = a.gridPos.y;
+    int x1 = b.gridPos.x;
+    int y1 = b.gridPos.y;
 
-    int stepx = 0;
-    int stepy = 0;
-    if (x2 > x1){
-        stepx = 1;
-    }
-    else if(x2 < x1)
+    if(Math.Abs(x1-x0) > Math.Abs(y1-y0))
     {
-        stepx = -1;
+        return drawLine(a,b);
     }
+        
+    else
+    {
+        return drawLine(b,a);
+    }
+
     
-    if (y2 > y1){
-        stepy = 1;
-    }
-    else if(y2 < y1)
-    {
-        stepy = -1;
-    }
     
-
-    while (x1 != x2 || y1 != y2)
-    {
-        if (x1 != x2)
-        {
-            x1 = x1 + stepx; //
-        }
-        if (y1 != y2)
-        {
-            y1 = y1 + stepy;
-        }
-        if (grid[x1,y1].status == -1)
-        {
-            return false;
-        }
-    }
-
-    // If we got here. There is a clear path. 
-    return true;
    }
+
+
+
+
+
    public List<Vector2Int> main() 
     {      
         Node source = null; // To initialize
